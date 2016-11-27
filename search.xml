@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search>
+  
+    
+    <entry>
+      <title><![CDATA[博客迁移基本完成，纪念下坑掉的老blog]]></title>
+      <url>%2F2016%2F11%2F27%2Fweb-oldblog%2F</url>
+      <content type="text"><![CDATA[1.技术栈对比现在使用基于hexo的静态博客，本地是hexo搭建的动态页面，部署时使用自带命令生成静态html文件，之后push到github后通过gitpage呈现。文章书写主要依靠markdown和html。 静态博客，免费服务器，免费域名lenrinfvck.github.io。虽然是静态页面，但是可以借由很多第三方云服务使用一些动态功能呢，如回复统计一类的。 以前自己使用 node+express+mongodb，部署在阿里云服务器上，linux主机预装centOS的裸机。所有动态数据存入数据库动态展示，文章使用了动态编译markdown的形式，同时也自行构建了一些语法功能，如嵌入标签分类和时期等。 代码部署在coding的git上，使用webhook自动同步到服务器。 动态博客，阿里云计流量28.8元/月，域名lenrinfvck.cn (服务器到期) 39元/年，维护博客本身就很烦，更难得写文章。忙起来后就没咋弄了，坑掉了。 2.相关博文 Node服务器搭建 - 阿里云ECS git代码自动部署，coding中webhook使用]]></content>
+    </entry>
+
+    
+    <entry>
+      <title><![CDATA[git代码自动部署，coding中webhook使用]]></title>
+      <url>%2F2016%2F01%2F19%2Fweb-webhook-coding%2F</url>
+      <content type="text"><![CDATA[环境： NodeJs: 4.0+ git: 1.8+官方说明: webhook说明 工作原理基于git的githook功能，coding提供的webhook服务，github也有类似服务。监听对远程仓库的操作，执行相应操作，此处webhook提供的处理是发送一个http请求到指定url地址。这时就可以在部署服务器上开个路由监听这个地址的访问，如果是coding发出的，则git pull拉去代码，并重启服务等。 步骤1.webhook监听创建 在此处新建一个监听，填入目标URL地址和加密口令，一般是监听push事件。 2.部署服务器处理webhook请求参考官方写法：coding案例写法123456789101112131415161718192021222324var process = require('child_process');module.exports = function(req, res, next) &#123; console.log('print', req.body); console.info(req.body["token"]); if('口令' === req.body['token'] )&#123; //console.info(process); process.exec('git pull origin master:master', &#123;'cwd':'/www/'&#125;, function (error, stdout, stderr) &#123; //配置了upstart后的重启服务 process.exec('restart mynode'); console.log('stdout========================\n' + stdout); console.log('stderr========================\n' + stderr); if (error !== null) &#123; res.send('&lt;pre&gt;fail!!!\n' + stdout + error + '&lt;/pre&gt;'); &#125; else &#123; res.send('&lt;pre&gt;done!!!\n' + stdout + '&lt;/pre&gt;'); &#125; &#125;); &#125; else &#123; console.log(' failed token ') res.send('&lt;pre&gt;token不正确?&lt;/pre&gt;'); &#125;&#125; 之后可在步骤1的设置界面出测试webhook是否成功，在配置界面会有webhook发送接收的记录信息。]]></content>
+    </entry>
+
+    
+    <entry>
+      <title><![CDATA[在vagrant搭建基于CentOS6的LAMP开发环境]]></title>
+      <url>%2F2016%2F01%2F19%2Fweb-vagrant-php-init%2F</url>
+      <content type="text"><![CDATA[关于vagrant安装和使用：vagrant使用 本次是在virtual+vagrant下安装的centos，在此基础上安装LAMP环境.centos.box下载：http://www.vagrantbox.es/ 相关版本：LINUX系统: centOS6.4 i386 Minimal 准备工作(1)配置防火墙，开启80端口、3306端口修改如下文件 /etc/sysconfig/iptables 可直接vi修改，或则使用filezila等软件修改 -A INPUT -m state --state NEW -m tcp -p tcp --dport 80 -j ACCEPT -A INPUT -m state --state NEW -m tcp -p tcp --dport 3306 -j ACCEPT 重启防火墙 $ /etc/init.d/iptables restart (2)关闭SELINUX修改如下文件 /etc/selinux/config #SELINUX=enforcing //注释掉 #SELINUXTYPE=targeted //注释掉 SELINUX=disabled //增加 重启系统shutdown -r now 安装LAMP(1)安装Apacheyum install httpd 等待安装，根据提示按y结束启动Apache /etc/init.d/http start开机自启动 chkconfig httpd on (2)安装MySQL按序输入如下指令询问是否要安装，输入Y即可自动安装,直到安装完成1yum install mysql mysql-server 启动MySQL1/etc/init.d/mysqld start 设为开机启动1chkconfig mysqld on 拷贝配置文件（注意：如果/etc目录下面默认有一个my.cnf，直接覆盖即可）1cp /usr/share/mysql/my-medium.cnf /etc/my.cnf 设置root密码12345mysql_secure_installation #回车，根据提示输入Y(输入密码，默认为无，即回车) #输入2次密码，回车 #根据提示一路输入Y #最后出现：Thanks for using MySQL! MySql密码设置完成，重新启动 MySQL：123/etc/init.d/mysqld restart #重启/etc/init.d/mysqld stop #停止/etc/init.d/mysqld start #启动 (3)安装PHP5安装php51yum install php 根据提示一路Y 安装PHP组件，使 PHP5 支持 MySQL1yum install php-mysql php-gd libjpeg* php-imap php-ldap php-odbc php-pear php-xml php-xmlrpc php-mbstring php-mcrypt php-bcmath php-mhash libmcrypt 这里选择以上安装包进行安装根据提示输入Y回车12/etc/init.d/mysqld restart #重启MySql /etc/init.d/httpd restart #重启Apche 升级php-5.5删除现有 php-common1yum -y remove php-common 设置新源1rpm -Uvh https://mirror.webtatic.com/yum/el6/latest.rpm 安装新的 php 以及 php 插件1234yum install php55w php55w-cli php55w-common php55w-gd php55w-ldap php55w-mbstring php55w-mcrypt php55w-mysql php55w-pdo php55w-pecl-memcache php55w-devel php55w-xml php55w-xmlrpc php55w-opcache/etc/init.d/httpd restart #重启Apchephp -v #检查版本 相关配置(1)Apache配置配置文件如下 /etc/httpd/conf/httpd.conf /var/www/html 代码根目录，使用vagrant时改为/vagrant，同时设置权限chown apache.apache -R /var/www/html ServerTokens OS在44行 修改为：ServerTokens Prod （在出现错误页的时候不显示服务器操作系统的名称） ServerSignature On在536行 修改为：ServerSignature Off （在错误页中不显示Apache的版本） Options Indexes FollowSymLinks在331行 修改为：Options Includes ExecCGIFollowSymLinks（允许服务器执行CGI及SSI，禁止列出目录） #AddHandler cgi-script .cgi在796行 修改为：AddHandler cgi-script .cgi .pl （允许扩展名为.pl的CGI脚本运行） AllowOverride None在338行 修改为：AllowOverride All （允许.htaccess） AddDefaultCharset UTF-8在759行 修改为：AddDefaultCharset GB2312 （添加GB2312为默认编码） Options Indexes MultiViews FollowSymLinks在554行 修改为 Options MultiViews FollowSymLinks（不在浏览器上显示树状目录结构） DirectoryIndex index.html index.html.var在402行 修改为：DirectoryIndex index.html index.htm Default.html Default.htm index.php Default.php index.html.var（设置默认首页文件，增加index.php） KeepAlive Off在76行 修改为：KeepAlive On （允许程序性联机） MaxKeepAliveRequests 100在83行 修改为：MaxKeepAliveRequests 1000 （增加同时连接数） 12/etc/init.d/httpd restart #重启 rm -f /etc/httpd/conf.d/welcome.conf /var/www/error/noindex.html #删除默认测试页 (2)PHP配置配置文件如下 /etc/php.ini date.timezone = PRC在946行 把前面的分号去掉，改为date.timezone = PRC expose_php = Off在432行 禁止显示php版本的信息 magic_quotes_gpc = On在745行 打开magic_quotes_gpc来防止SQL注入 short_open_tag = ON在229行支持php短标签]]></content>
+    </entry>
+
+    
+    <entry>
+      <title><![CDATA[Node服务器搭建 - 阿里云ECS]]></title>
+      <url>%2F2016%2F01%2F17%2Fweb-node-server%2F</url>
+      <content type="text"><![CDATA[[服务器]： 阿里云ECS，1核512MB，流量收费(￥28.8/月，￥0.72/GB) [系统]：CentOS6.5 32位 [环境]：Node + Express + Mongodb3.0.6 [本机]：OSX EI Capitan Linux，OSX直接以ssh链接，Win使用putty链接 1.服务器基本操作首先选配安装，设置root密码，获得公网IP。 1.1 服务器登陆主机控制台ssh root@[ip]登陆后按提示输入root的密码。如：ssh root@110.12.32.12 1.2 安装FTP服务器控制台执行yum install vsftpd -v，设置为开机启动chkconfig vsftpd on注：如果出现安装到一半链接断掉，再次执行yum时会出现进程锁，可以ps -ef|grep yum查找进程id后kill -9 id结束该进程。 1.3 使用SFTP不使用FTP，直接用FileZila/WinSCP等软件进行SSH链接来传输文件。 1.4 更新git删除原始gityum remove git从github上下载一个最新版：123456789101112cd /usr/local/srcwget https://github.com/git/git/archive/master.zipunzip master.zip#编译安装cd /usr/local/src/git-mastermake configure./configure --prefix=/usr/binmakemake install#覆盖原有命令\cp -fr /usr/local/src/git-master/git /usr/bingit --version error解决：12345678#make时与zilb有关的错误yum install zlib-devel -y#运行git clone https，https报错yum install curl-develcd /usr/local/src/git-master ./configuremakemake install 2.安装Node安装nvm用于管理node，详情见http://fengmk2.com/blog/2014/03/node-env-and-faster-npm.html 注：退出ssh后需要重新nvm use的问题。123#使用具体版本号nvm use 4.1.2nvm alias default 4.1.2 3.安装Mongodb1234567891011121314151617181920212223242526272829303132#下载安装包并解压，32系统只能安装对应的i686的32位版本 wget https://fastdl.mongodb.org/linux/mongodb-linux-i686-3.0.6.tgztar -zxvf mongodb-linux-i686-3.0.6.tgz#移动到安装目录mv mongodb-linux-i686-3.0.6 /usr/local/mongodb#新建数据库目录mkdir -p /app/mongodb/dbmkdir -p /app/mongodb/logs#添加mongodb.conf文件cd /usr/local/mongodb/binvi mongodb.conf#文件内容 START#dbpath = /app/mongodb/db #数据文件存放目录 logpath = /app/mongodb/logs/mongodb.log #日志文件存放目录 port = 27017 #端口 fork = true #以守护程序的方式启用，即在后台运行 nohttpinterface = true #auth = true #使用用户模式连接，暂时不开启#文件内容 END##启动/usr/local/mongodb/bin/mongod --config /usr/local/mongodb/bin/mongodb.conf#启动mongodb命令行/usr/local/mongodb/bin/mongo#重启ps -ef | grep mongodb #得到mongodb进程idkill -15 id/usr/local/mongodb/bin/mongod --config /usr/local/mongodb/bin/mongodb.conf 创建用户1234#在mongo命令行下use admindb.createUser(&#123;user:'admin',pwd:'admin',roles:[&#123;role:'userAdminAnyDatabase',db:'admin'&#125;,&#123;role:'readWriteAnyDatabase',db:'admin'&#125;]&#125;)#之后在config文件中将auth=true启用，并重启mongodb，之后就只能使用相应用户才能登陆 图形界面mongoHub 兼容性较好，最新版支持mongodb3.0+Robomongo 界面简单清晰，用户模式不支持mongodb3.0+，需要修改认证模式，比较麻烦。 4.Node部署4.1 从Git部署代码123git clone https://github.com/xxx/xxx.gitcd xxxnode app.js 4.2 持久运行foreverssh断开后node程序会终止，使用forever持久运行12345678#使用forever持久运行npm install -g foreverforever start app.js#其他forever stop app.js #停止程序forever list #运行中的清单forever -w start app.js #源码修改时自动重启 4.3 Upstart维护正常运行服务器重启或崩溃后重启使用，同理可用于Vagrant等本地虚拟环境1234#安装yum install upstart#在/etc/init下添加配置文件touch /etc/init/mynode.conf mynode.conf内容如下1234567891011#自带的upstart版本比较低，有些语法不支持，以下写法亲测有效author "lenrinfvck"description "mynode"#start on (local-filesystems and net-device-up IFACE=eh0)start on startupstop on shutdownrespawn #env NODE_ENV=production #此node路径为nvm设置的PATH路径，非nvm安装的使用其他相应路径exec /var/gitclone/nvm/versions/node/v4.1.2/bin/node /www/app.js mymongodb.conf内容如下123456789description "lrfmad-mongodb"author "lenrinfvck"limit nofile 20000 20000kill timeout 300respawnrespawn limit 2 5start on runlevel [2345]stop on runlevel [06]exec /usr/local/mongodb/bin/mongod --config /usr/local/mongodb/bin/mongodb.conf 启动Upstartstart mynode以及start mymongodb >mynode start/running, process 6770 之后可以尝试重启服务器，测试环境是否启动]]></content>
+    </entry>
+
+    
+    <entry>
+      <title><![CDATA[【PV】2015世萌季后赛PV]]></title>
+      <url>%2F2015%2F11%2F05%2Fp12-2015-moepv%2F</url>
+      <content type="text"><![CDATA[【EVENT】 2015世萌季后赛PV合作 【BGM】 ClariS - pastel 【MATERIAL】 伪恋ED，相关动画OP，网络图片 【分段】 00:00 - 00:20 【PS】 很久没填过坑了，填的很累，中途弃坑了几次，最后赶出来发现自己是第一个交稿的。。。 【LINK】 bilibili 如头图，第一个分镜，人物为伪恋ED01中幼年兔子的动抠。玻璃窗和地板都是蜂窝Cell pattern制作，地板叠了星空图，玻璃叠了视频或者直接overflow后面的星空。背景多张星空图组合+OF光，光源主要来自星空方向的平行光，故这边人物成黑色。后期又在走廊空中叠了点P粒子看起来丰富点。。。 跟随原动画镜头位移，让蜂窝玻璃也跟着移动，模拟摄像机向上移动。 填到后面填不动了，随便糊了一个，觉得太屎了，后来有重新想了个，绝的太麻烦了，要调很久，于是就找了模板去了，没看几个就看的这个挺合适的，就拿来用了，改良了下后发现效果不错，打打节奏点后发现可以按原计划把之前放弃的后面一小段也一起做了，就成最后这样了。。。 工程文件：暂无, 在其他电脑上，本文为顺便测试blog…]]></content>
+    </entry>
+
+    
+    <entry>
+      <title><![CDATA[【MAD】Little Busters - After Effects]]></title>
+      <url>%2F2014%2F03%2F10%2Fp10-chunqiu-2013%2F</url>
+      <content type="text"><![CDATA[【EVENT】 第五回春秋合战-最终日 【BGM】 INFINITE CRISIS 【MATERIAL】 LB动画，LB游戏，LB同人，雪之本境 【PS】 参加春秋很愉悦，和二哥同一天很兴奋，忙到半夜的羽殇姐姐辛苦了。 【LINK】 bilibili]]></content>
+    </entry>
+
+    
+    <entry>
+      <title><![CDATA[【Towiko组内合作】爆漫王☆SEEDX8]]></title>
+      <url>%2F2014%2F02%2F06%2Fp9-towiko-comic%2F</url>
+      <content type="text"><![CDATA[【EVENT】 Towiko合作，主题为漫画 【BGM】 SEED 【MATERIAL】 一拳超人 【分段】 一拳部分 【PS】 漫画真没做过，划水被打回后又上E3D赶了一版，尝试了些很有趣的做法。。。机子很卡 【LINK】 bilibili]]></content>
+    </entry>
+
+    
+    <entry>
+      <title><![CDATA[【PV】LittleBusters! 同人本宣传PV]]></title>
+      <url>%2F2013%2F04%2F06%2Fp11-lbpv%2F</url>
+      <content type="text"><![CDATA[【EVENT】 LittleBusters同人本宣传动画 【BGM】 LBPSV版特典 【MATERIAL】 LittleBusters同人本素材 【PS】 欢迎购买嗯，50一套（本子 纸袋 贴纸 海报）。漫研社公式站点 【LINK】 bilibili]]></content>
+    </entry>
+
+    
+    <entry>
+      <title><![CDATA[【Towiko组内合作】Hop Step Love×16]]></title>
+      <url>%2F2013%2F02%2F14%2Fp7-towiko-gal%2F</url>
+      <content type="text"><![CDATA[【EVENT】 Towiko静止合作，主题为Gal 【BGM】 知道了再补 【MATERIAL】 Little Busters 【分段】 1:25 - 1:34s LB部分 【PS】 貌似是进T组后第一次参加合作，分镜有点抄某LB的合作，不过做的还是挺满意 【LINK】 bilibili]]></content>
+    </entry>
+
+    
+    <entry>
+      <title><![CDATA[【GayTeam合作】做不了一辈子mad，愿做一辈子基友]]></title>
+      <url>%2F2013%2F01%2F27%2Fp8-gayteam-ac2013%2F</url>
+      <content type="text"><![CDATA[【EVENT】 Acfun2013春晚，GT合作 【BGM】 忘了 【MATERIAL】 LittleBusters动画 【分段】 1:38-1:46 LB部分 【PS】 大家都很卖力的动抠，个人做了三天，抠图花了一天 【LINK】 acfun]]></content>
+    </entry>
+
+    
+    <entry>
+      <title><![CDATA[【CM】Haru·初祭2013 CM1]]></title>
+      <url>%2F2013%2F01%2F16%2Fp6-2013-haru%2F</url>
+      <content type="text"><![CDATA[【EVENT】 Haru·初祭2013 CM合作 【BGM】 满脑 俺喂牛niconico~(不知道) 【MATERIAL】 E3D自带素材 【分段】 00:00 - 00:17 片头 【PS】 第二次E3D实战，还不错呢，额外装饰后来加上后好看了许多，当时挺满意的 【LINK】 bilibili]]></content>
+    </entry>
+
+    
+    <entry>
+      <title><![CDATA[【MAD】二人の夏]]></title>
+      <url>%2F2012%2F11%2F12%2Fp5-2012-newmader%2F</url>
+      <content type="text"><![CDATA[【EVENT】 2012MAD新人战-最终日 【BGM】 secret base (《未闻花名》ED) 【MATERIAL】 萤火之森-剧场版 【PS】 第一次做这么长，做的挺认真，现在看来很是喜欢。 【LINK】 bilibili]]></content>
+    </entry>
+
+    
+    <entry>
+      <title><![CDATA[【MAD合作】性别不同怎么谈恋爱]]></title>
+      <url>%2F2012%2F09%2F02%2Fp4-gays-oneday%2F</url>
+      <content type="text"><![CDATA[【EVENT】 深夜四基佬日烧合作 【BGM】 能登麻美子 - 夕颜 【MATERIAL】 女装山脉CG (千万不要去玩) 【分段】 1:16-1:42 【PS】 my wife names milk; 风触我是你的NC粉; 论AA老师的重要性; 【LINK】 bilibili]]></content>
+    </entry>
+
+    
+    <entry>
+      <title><![CDATA[【mad吧mep合作】I'll believe - 爱比利]]></title>
+      <url>%2F2012%2F08%2F20%2Fp3-tieba-02%2F</url>
+      <content type="text"><![CDATA[【EVENT】 mad吧暑期mep合作 【BGM】 I’ll believe 【MATERIAL】 传说系列OP, 黑契, FZ 【分段】 2:30 - 2:47 part10 【PS】 那时动不动就合作呢，我前面part9是hentaiQsama啊。。。还有OP是我做的→_→ 【LINK】 bilibili]]></content>
+    </entry>
+
+    
+    <entry>
+      <title><![CDATA[【mad吧mep合作】风铃赞歌]]></title>
+      <url>%2F2012%2F05%2F07%2Fp2-tieba-01%2F</url>
+      <content type="text"><![CDATA[【EVENT】 入吧后第一次MAD吧mep合作 【BGM】 JJJJ（不知道） 【MATERIAL】 银魂, Another, 金坷垃 【分段】 1:25 - 1:32 part12 【PS】 这是百度MAD吧第一次交流性质的合作，意在互相交流与学习，早期黑历史般的合作啊，做的好屎。。。 【LINK】 bilibili]]></content>
+    </entry>
+
+    
+    <entry>
+      <title><![CDATA[【MAD】青空 仿制]]></title>
+      <url>%2F2012%2F01%2F23%2Fp1-sola%2F</url>
+      <content type="text"><![CDATA[【EVENT】 初学AE，仿作练习 【BGM】 玻璃の空 【MATERIAL】 网络图包 【PS】 仿制数好几十的入门练手作。向原作者羽殇致敬 【LINK】 bilibili]]></content>
+    </entry>
+
+    
+    <entry>
+      <title><![CDATA[【MAD】EF & YELL]]></title>
+      <url>%2F2012%2F01%2F20%2Fp0-ef-yell%2F</url>
+      <content type="text"><![CDATA[【EVENT】 处女作 【BGM】 生物股长 - Yell 【MATERIAL】 EF、eden*游戏及动画OP 【PS】 初学vegas后的第一作，入坑作，现在看来别有一番风味 【LINK】 bilibili]]></content>
+    </entry>
+
+    
+  
+  
+</search>
