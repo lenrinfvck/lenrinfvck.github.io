@@ -1,0 +1,737 @@
+<!doctype html>
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.0" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="nodejs,express,mongodb," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=5.1.0" />
+
+
+
+
+
+
+<meta name="description" content="[服务器]： 阿里云ECS，1核512MB，流量收费(￥28.8/月，￥0.72/GB) [系统]：CentOS6.5 32位 [环境]：Node + Express + Mongodb3.0.6 [本机]：OSX EI Capitan  
+
+Linux，OSX直接以ssh链接，Win使用putty链接">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Node服务器搭建 - 阿里云ECS">
+<meta property="og:url" content="http://yoursite.com/2016/01/17/web-node-server/index.html">
+<meta property="og:site_name" content="LenRinFvck个人博客">
+<meta property="og:description" content="[服务器]： 阿里云ECS，1核512MB，流量收费(￥28.8/月，￥0.72/GB) [系统]：CentOS6.5 32位 [环境]：Node + Express + Mongodb3.0.6 [本机]：OSX EI Capitan  
+
+Linux，OSX直接以ssh链接，Win使用putty链接">
+<meta property="og:updated_time" content="2016-11-27T08:27:15.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Node服务器搭建 - 阿里云ECS">
+<meta name="twitter:description" content="[服务器]： 阿里云ECS，1核512MB，流量收费(￥28.8/月，￥0.72/GB) [系统]：CentOS6.5 32位 [环境]：Node + Express + Mongodb3.0.6 [本机]：OSX EI Capitan  
+
+Linux，OSX直接以ssh链接，Win使用putty链接">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post"},
+    fancybox: true,
+    motion: true,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2016/01/17/web-node-server/"/>
+
+
+
+
+
+  <title> Node服务器搭建 - 阿里云ECS | LenRinFvck个人博客 </title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container one-collumn sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-meta ">
+  
+
+  <div class="custom-logo-site-title">
+    <a href="/"  class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">LenRinFvck个人博客</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+  <p class="site-subtitle">一些前端记录和MAD相关</p>
+</div>
+
+<div class="site-nav-toggle">
+  <button>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+  </button>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-web">
+          <a href="/categories/WEB前端" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-html5"></i> <br />
+            
+            WEB前端
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-mad">
+          <a href="/categories/MAD作品" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-play"></i> <br />
+            
+            MAD相关
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+  <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/01/17/web-node-server/">
+
+  <span style="display:none" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <meta itemprop="name" content="lenrinfvck">
+    <meta itemprop="description" content="">
+    <meta itemprop="image" content="/uploads/avatar.jpg">
+  </span>
+
+  <span style="display:none" itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+    <meta itemprop="name" content="LenRinFvck个人博客">
+    <span style="display:none" itemprop="logo" itemscope itemtype="http://schema.org/ImageObject">
+      <img style="display:none;" itemprop="url image" alt="LenRinFvck个人博客" src="">
+    </span>
+  </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                Node服务器搭建 - 阿里云ECS
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2016-01-17T01:30:00+08:00">
+                2016-01-17
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+              <span class="post-meta-divider">|</span>
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/WEB前端/" itemprop="url" rel="index">
+                    <span itemprop="name">WEB前端</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <a href="/2016/01/17/web-node-server/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count ds-thread-count" data-thread-key="2016/01/17/web-node-server/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+
+          
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <blockquote>
+<p>[服务器]： 阿里云ECS，1核512MB，流量收费(￥28.8/月，￥0.72/GB)<br> [系统]：CentOS6.5 32位<br> [环境]：Node + Express + Mongodb3.0.6<br> [本机]：OSX EI Capitan  </p>
+</blockquote>
+<p>Linux，OSX直接以ssh链接，Win使用putty链接</p>
+<a id="more"></a>
+<h1 id="1-服务器基本操作"><a href="#1-服务器基本操作" class="headerlink" title="1.服务器基本操作"></a>1.服务器基本操作</h1><p>首先选配安装，设置root密码，获得公网IP。</p>
+<h2 id="1-1-服务器登陆"><a href="#1-1-服务器登陆" class="headerlink" title="1.1 服务器登陆"></a>1.1 服务器登陆</h2><p>主机控制台<code>ssh root@[ip]</code>登陆后按提示输入root的密码。<br>如：<code>ssh root@110.12.32.12</code>  </p>
+<h2 id="1-2-安装FTP"><a href="#1-2-安装FTP" class="headerlink" title="1.2 安装FTP"></a>1.2 安装FTP</h2><p>服务器控制台执行<code>yum install vsftpd -v</code>，<br>设置为开机启动<code>chkconfig vsftpd on</code><br><em>注：如果出现安装到一半链接断掉，再次执行yum时会出现进程锁，可以<code>ps -ef|grep yum</code>查找进程id后<code>kill -9 id</code>结束该进程。</em>  </p>
+<h2 id="1-3-使用SFTP"><a href="#1-3-使用SFTP" class="headerlink" title="1.3 使用SFTP"></a>1.3 使用SFTP</h2><p>不使用FTP，直接用FileZila/WinSCP等软件进行SSH链接来传输文件。</p>
+<h2 id="1-4-更新git"><a href="#1-4-更新git" class="headerlink" title="1.4 更新git"></a>1.4 更新git</h2><p>删除原始git<br><code>yum remove git</code><br>从github上下载一个最新版：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"><span class="built_in">cd</span> /usr/<span class="built_in">local</span>/src</div><div class="line">wget https://github.com/git/git/archive/master.zip</div><div class="line">unzip master.zip</div><div class="line"><span class="comment">#编译安装</span></div><div class="line"><span class="built_in">cd</span> /usr/<span class="built_in">local</span>/src/git-master</div><div class="line">make configure</div><div class="line">./configure --prefix=/usr/bin</div><div class="line">make</div><div class="line">make install</div><div class="line"><span class="comment">#覆盖原有命令</span></div><div class="line">\cp -fr /usr/<span class="built_in">local</span>/src/git-master/git /usr/bin</div><div class="line">git --version</div></pre></td></tr></table></figure></p>
+<p>error解决：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="comment">#make时与zilb有关的错误</span></div><div class="line">yum install zlib-devel -y</div><div class="line"><span class="comment">#运行git clone https，https报错</span></div><div class="line">yum install curl-devel</div><div class="line"><span class="built_in">cd</span> /usr/<span class="built_in">local</span>/src/git-master </div><div class="line">./configure</div><div class="line">make</div><div class="line">make install</div></pre></td></tr></table></figure></p>
+<h1 id="2-安装Node"><a href="#2-安装Node" class="headerlink" title="2.安装Node"></a>2.安装Node</h1><p>安装nvm用于管理node，详情见<a href="http://fengmk2.com/blog/2014/03/node-env-and-faster-npm.html" target="_blank" rel="external">http://fengmk2.com/blog/2014/03/node-env-and-faster-npm.html</a>    </p>
+<p>注：退出ssh后需要重新nvm use的问题。<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="comment">#使用具体版本号</span></div><div class="line">nvm use 4.1.2</div><div class="line">nvm <span class="built_in">alias</span> default 4.1.2</div></pre></td></tr></table></figure></p>
+<h1 id="3-安装Mongodb"><a href="#3-安装Mongodb" class="headerlink" title="3.安装Mongodb"></a>3.安装Mongodb</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div></pre></td><td class="code"><pre><div class="line"><span class="comment">#下载安装包并解压，32系统只能安装对应的i686的32位版本  </span></div><div class="line">wget https://fastdl.mongodb.org/linux/mongodb-linux-i686-3.0.6.tgz</div><div class="line">tar -zxvf mongodb-linux-i686-3.0.6.tgz</div><div class="line"></div><div class="line"><span class="comment">#移动到安装目录</span></div><div class="line">mv mongodb-linux-i686-3.0.6 /usr/<span class="built_in">local</span>/mongodb</div><div class="line"></div><div class="line"><span class="comment">#新建数据库目录</span></div><div class="line">mkdir -p /app/mongodb/db</div><div class="line">mkdir -p /app/mongodb/logs</div><div class="line"></div><div class="line"><span class="comment">#添加mongodb.conf文件</span></div><div class="line"><span class="built_in">cd</span> /usr/<span class="built_in">local</span>/mongodb/bin</div><div class="line">vi mongodb.conf</div><div class="line"><span class="comment">#文件内容 START#</span></div><div class="line">dbpath = /app/mongodb/db <span class="comment">#数据文件存放目录  </span></div><div class="line">logpath = /app/mongodb/logs/mongodb.log <span class="comment">#日志文件存放目录  </span></div><div class="line">port = 27017  <span class="comment">#端口  </span></div><div class="line">fork = <span class="literal">true</span>  <span class="comment">#以守护程序的方式启用，即在后台运行  </span></div><div class="line">nohttpinterface = <span class="literal">true</span>  </div><div class="line"><span class="comment">#auth = true  #使用用户模式连接，暂时不开启</span></div><div class="line"><span class="comment">#文件内容 END#</span></div><div class="line"></div><div class="line"><span class="comment">#启动</span></div><div class="line">/usr/<span class="built_in">local</span>/mongodb/bin/mongod --config /usr/<span class="built_in">local</span>/mongodb/bin/mongodb.conf</div><div class="line"><span class="comment">#启动mongodb命令行</span></div><div class="line">/usr/<span class="built_in">local</span>/mongodb/bin/mongo</div><div class="line"></div><div class="line"><span class="comment">#重启</span></div><div class="line">ps -ef | grep mongodb <span class="comment">#得到mongodb进程id</span></div><div class="line"><span class="built_in">kill</span> -15 id</div><div class="line">/usr/<span class="built_in">local</span>/mongodb/bin/mongod --config /usr/<span class="built_in">local</span>/mongodb/bin/mongodb.conf</div></pre></td></tr></table></figure>
+<p>创建用户<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="comment">#在mongo命令行下</span></div><div class="line">use admin</div><div class="line">db.createUser(&#123;user:<span class="string">'admin'</span>,<span class="built_in">pwd</span>:<span class="string">'admin'</span>,roles:[&#123;role:<span class="string">'userAdminAnyDatabase'</span>,db:<span class="string">'admin'</span>&#125;,&#123;role:<span class="string">'readWriteAnyDatabase'</span>,db:<span class="string">'admin'</span>&#125;]&#125;)</div><div class="line"><span class="comment">#之后在config文件中将auth=true启用，并重启mongodb，之后就只能使用相应用户才能登陆</span></div></pre></td></tr></table></figure></p>
+<blockquote>
+<p>图形界面<br>mongoHub   兼容性较好，最新版支持mongodb3.0+<br>Robomongo  界面简单清晰，用户模式不支持mongodb3.0+，需要修改认证模式，比较麻烦。</p>
+</blockquote>
+<h1 id="4-Node部署"><a href="#4-Node部署" class="headerlink" title="4.Node部署"></a>4.Node部署</h1><h2 id="4-1-从Git部署代码"><a href="#4-1-从Git部署代码" class="headerlink" title="4.1 从Git部署代码"></a>4.1 从Git部署代码</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">git <span class="built_in">clone</span> https://github.com/xxx/xxx.git</div><div class="line"><span class="built_in">cd</span> xxx</div><div class="line">node app.js</div></pre></td></tr></table></figure>
+<h2 id="4-2-持久运行forever"><a href="#4-2-持久运行forever" class="headerlink" title="4.2 持久运行forever"></a>4.2 持久运行forever</h2><p>ssh断开后node程序会终止，使用forever持久运行<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="comment">#使用forever持久运行</span></div><div class="line">npm install -g forever</div><div class="line">forever start app.js</div><div class="line"></div><div class="line"><span class="comment">#其他</span></div><div class="line">forever stop app.js     <span class="comment">#停止程序</span></div><div class="line">forever list    <span class="comment">#运行中的清单</span></div><div class="line">forever -w start app.js     <span class="comment">#源码修改时自动重启</span></div></pre></td></tr></table></figure></p>
+<h2 id="4-3-Upstart维护正常运行"><a href="#4-3-Upstart维护正常运行" class="headerlink" title="4.3 Upstart维护正常运行"></a>4.3 Upstart维护正常运行</h2><p>服务器重启或崩溃后重启使用，同理可用于Vagrant等本地虚拟环境<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="comment">#安装</span></div><div class="line">yum install upstart</div><div class="line"><span class="comment">#在/etc/init下添加配置文件</span></div><div class="line">touch /etc/init/mynode.conf</div></pre></td></tr></table></figure></p>
+<p><code>mynode.conf</code>内容如下<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line"><span class="comment">#自带的upstart版本比较低，有些语法不支持，以下写法亲测有效</span></div><div class="line">author <span class="string">"lenrinfvck"</span></div><div class="line">description <span class="string">"mynode"</span></div><div class="line"></div><div class="line"><span class="comment">#start on (local-filesystems and net-device-up IFACE=eh0)</span></div><div class="line">start on startup</div><div class="line">stop on shutdown</div><div class="line">respawn  </div><div class="line"><span class="comment">#env NODE_ENV=production  </span></div><div class="line"><span class="comment">#此node路径为nvm设置的PATH路径，非nvm安装的使用其他相应路径</span></div><div class="line"><span class="built_in">exec</span> /var/gitclone/nvm/versions/node/v4.1.2/bin/node /www/app.js</div></pre></td></tr></table></figure></p>
+<p><code>mymongodb.conf</code>内容如下<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">description <span class="string">"lrfmad-mongodb"</span></div><div class="line">author <span class="string">"lenrinfvck"</span></div><div class="line"><span class="built_in">limit</span> nofile 20000 20000</div><div class="line"><span class="built_in">kill</span> timeout 300</div><div class="line">respawn</div><div class="line">respawn <span class="built_in">limit</span> 2 5</div><div class="line">start on runlevel [2345]</div><div class="line">stop on runlevel [06]</div><div class="line"><span class="built_in">exec</span>  /usr/<span class="built_in">local</span>/mongodb/bin/mongod --config /usr/<span class="built_in">local</span>/mongodb/bin/mongodb.conf</div></pre></td></tr></table></figure></p>
+<p>启动Upstart<br><code>start mynode</code>以及<code>start mymongodb</code>  </p>
+<blockquote>
+<p>>mynode start/running, process 6770  </p>
+</blockquote>
+<p><em>之后可以尝试重启服务器，测试环境是否启动</em></p>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/nodejs/" rel="tag"># nodejs</a>
+          
+            <a href="/tags/express/" rel="tag"># express</a>
+          
+            <a href="/tags/mongodb/" rel="tag"># mongodb</a>
+          
+        </div>
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2015/11/05/p12-2015-moepv/" rel="next" title="【PV】2015世萌季后赛PV">
+                <i class="fa fa-chevron-left"></i> 【PV】2015世萌季后赛PV
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2016/01/19/web-vagrant-php-init/" rel="prev" title="在vagrant搭建基于CentOS6的LAMP开发环境">
+                在vagrant搭建基于CentOS6的LAMP开发环境 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div class="ds-thread" data-thread-key="2016/01/17/web-node-server/"
+           data-title="Node服务器搭建 - 阿里云ECS" data-url="http://yoursite.com/2016/01/17/web-node-server/">
+      </div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="/uploads/avatar.jpg"
+               alt="lenrinfvck" />
+          <p class="site-author-name" itemprop="name">lenrinfvck</p>
+          <p class="site-description motion-element" itemprop="description">记录一些web前端相关内容，以及整理曾经或则将来（如果还做的话）的MAD作品</p>
+        </div>
+        <nav class="site-state motion-element">
+          <div class="site-state-item site-state-posts">
+            <a href="/archives">
+              <span class="site-state-item-count">17</span>
+              <span class="site-state-item-name">日志</span>
+            </a>
+          </div>
+
+          
+            <div class="site-state-item site-state-categories">
+              
+                <span class="site-state-item-count">2</span>
+                <span class="site-state-item-name">分类</span>
+              
+            </div>
+          
+
+          
+            <div class="site-state-item site-state-tags">
+              <a href="/tags">
+                <span class="site-state-item-count">13</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/lenrinfvck" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="http://space.bilibili.com/213959/#!/index" target="_blank" title="BiliBili">
+                  
+                    <i class="fa fa-fw fa-play"></i>
+                  
+                  BiliBili
+                </a>
+              </span>
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/lenrinfvck/ntrf-doc" target="_blank" title="Notes">
+                  
+                    <i class="fa fa-fw fa-pencil"></i>
+                  
+                  Notes
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#1-服务器基本操作"><span class="nav-number">1.</span> <span class="nav-text">1.服务器基本操作</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-1-服务器登陆"><span class="nav-number">1.1.</span> <span class="nav-text">1.1 服务器登陆</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-2-安装FTP"><span class="nav-number">1.2.</span> <span class="nav-text">1.2 安装FTP</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-3-使用SFTP"><span class="nav-number">1.3.</span> <span class="nav-text">1.3 使用SFTP</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-4-更新git"><span class="nav-number">1.4.</span> <span class="nav-text">1.4 更新git</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#2-安装Node"><span class="nav-number">2.</span> <span class="nav-text">2.安装Node</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#3-安装Mongodb"><span class="nav-number">3.</span> <span class="nav-text">3.安装Mongodb</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#4-Node部署"><span class="nav-number">4.</span> <span class="nav-text">4.Node部署</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#4-1-从Git部署代码"><span class="nav-number">4.1.</span> <span class="nav-text">4.1 从Git部署代码</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-2-持久运行forever"><span class="nav-number">4.2.</span> <span class="nav-text">4.2 持久运行forever</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-3-Upstart维护正常运行"><span class="nav-number">4.3.</span> <span class="nav-text">4.3 Upstart维护正常运行</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2016</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">lenrinfvck</span>
+</div>
+
+
+<div class="powered-by">
+  由 <a class="theme-link" href="https://hexo.io">Hexo</a> 强力驱动
+</div>
+
+<div class="theme-info">
+  主题 -
+  <a class="theme-link" href="https://github.com/iissnan/hexo-theme-next">
+    NexT.Pisces
+  </a>
+</div>
+
+
+        
+
+        
+      </div>
+    </footer>
+
+    <div class="back-to-top">
+      <i class="fa fa-arrow-up"></i>
+    </div>
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.0"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.0"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.0"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.0"></script>
+
+
+
+  
+
+  
+    
+  
+
+  <script type="text/javascript">
+    var duoshuoQuery = {short_name:"lrfmad"};
+    (function() {
+      var ds = document.createElement('script');
+      ds.type = 'text/javascript';ds.async = true;
+      ds.id = 'duoshuo-script';
+      ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+      ds.charset = 'UTF-8';
+      (document.getElementsByTagName('head')[0]
+      || document.getElementsByTagName('body')[0]).appendChild(ds);
+    })();
+  </script>
+
+  
+    
+    
+    <script src="/lib/ua-parser-js/dist/ua-parser.min.js?v=0.7.9"></script>
+    <script src="/js/src/hook-duoshuo.js"></script>
+  
+
+
+
+
+
+
+
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+
+</body>
+</html>
