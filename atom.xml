@@ -1,0 +1,865 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>LenRinFvck个人博客</title>
+  <subtitle>一些前端记录和MAD相关</subtitle>
+  <link href="/atom.xml" rel="self"/>
+  
+  <link href="http://lenrinfvck.cn/"/>
+  <updated>2017-01-06T19:03:41.000Z</updated>
+  <id>http://lenrinfvck.cn/</id>
+  
+  <author>
+    <name>lenrinfvck</name>
+    
+  </author>
+  
+  <generator uri="http://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>particleground源码阅读笔记 | 轻量级canvas粒子插件</title>
+    <link href="http://lenrinfvck.cn/2017/01/07/web-particleground/"/>
+    <id>http://lenrinfvck.cn/2017/01/07/web-particleground/</id>
+    <published>2017-01-06T16:39:14.000Z</published>
+    <updated>2017-01-06T19:03:41.000Z</updated>
+    
+    <content type="html"><![CDATA[<img src="/2017/01/07/web-particleground/bg.jpg" alt="bg.jpg" title="">
+<p>首先可以来看下这个插件的demo：<a href="https://jnicol.github.io/particleground/" target="_blank" rel="external">https://jnicol.github.io/particleground/</a><br>一种比较常见的粒子背景，有连线，有3d视差效果。<br>代码：<a href="https://github.com/jnicol/particleground" target="_blank" rel="external">github地址</a>  </p>
+<p>源代码很短，本文也算不上啥解析文章，只是阅读笔记。 </p>
+<h1 id="1-基本的粒子动画"><a href="#1-基本的粒子动画" class="headerlink" title="1.基本的粒子动画"></a>1.基本的粒子动画</h1><p>在canvas画布上绘制复数实心圆点即粒子，每个粒子都有它的粒子对象实例，用于记录它的大小、位置信息以及速度，通过timeout来更新粒子的位置形成粒子动画。大概类似下面这样：  </p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">var</span> allParticles = [];</div><div class="line"><span class="comment">// 初始化粒子</span></div><div class="line"><span class="keyword">for</span>(<span class="keyword">var</span> i = <span class="number">0</span>; i &lt; <span class="number">100</span>; i++) &#123;</div><div class="line">    <span class="keyword">var</span> p = <span class="keyword">new</span> Particle();</div><div class="line">    allParticles.push(p);</div><div class="line">&#125;</div><div class="line">setTimeout(<span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</div><div class="line">    allParticles.forEach(<span class="function"><span class="keyword">function</span>(<span class="params">item</span>) </span>&#123;</div><div class="line">        <span class="comment">// 更新粒子位置</span></div><div class="line">        item.update();</div><div class="line">    &#125;);</div><div class="line">    <span class="comment">// 根据各个粒子的位置绘制到canvas上</span></div><div class="line">    draw(allParticles);</div><div class="line">&#125;, <span class="number">30</span>);</div></pre></td></tr></table></figure>
+<a id="more"></a>
+<h1 id="2-particleground源代码"><a href="#2-particleground源代码" class="headerlink" title="2.particleground源代码"></a>2.particleground源代码</h1><p>该插件可作为jquery插件使用，同时也直接在window上挂载了相应方法，使用时只需传入舞台dom对象和配置信息即可。  </p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">particleground(<span class="built_in">document</span>.getElementById(<span class="string">'particles'</span>), &#123;</div><div class="line">    <span class="attr">dotColor</span>: <span class="string">'#5cbdaa'</span>,</div><div class="line">    <span class="attr">lineColor</span>: <span class="string">'#5cbdaa'</span></div><div class="line">&#125;);</div></pre></td></tr></table></figure>
+<p>此方法会去实例化Plugin构造函数，然而返回的是一个有闭包关系的对象。<br><figure class="highlight js"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">function</span> <span class="title">Plugin</span>(<span class="params"></span>) </span>&#123;</div><div class="line">    <span class="comment">// 一些模块的私有变量，由于存在闭包，会持续存储着</span></div><div class="line">    <span class="keyword">var</span> particles = [];</div><div class="line">    <span class="keyword">var</span> mouseX = <span class="number">0</span>;</div><div class="line">    <span class="keyword">var</span> mouseY = <span class="number">0</span>;</div><div class="line">    ... ...</div><div class="line"></div><div class="line">    <span class="comment">// 一些方法函数定义</span></div><div class="line">    <span class="function"><span class="keyword">function</span> <span class="title">init</span>(<span class="params"></span>) </span>&#123;&#125;</div><div class="line">    <span class="function"><span class="keyword">function</span> <span class="title">start</span>(<span class="params"></span>) </span>&#123;&#125;</div><div class="line">    init();</div><div class="line"></div><div class="line">    <span class="keyword">return</span> &#123;</div><div class="line">      <span class="attr">option</span>: option,</div><div class="line">      <span class="attr">destroy</span>: destroy,</div><div class="line">      <span class="attr">start</span>: start,</div><div class="line">      <span class="attr">pause</span>: pause</div><div class="line">    &#125;;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<blockquote>
+<p>如上，执行逻辑只有一个<code>init()</code>函数。   </p>
+</blockquote>
+<h2 id="2-1-初始化-init"><a href="#2-1-初始化-init" class="headerlink" title="2.1 初始化 - init()"></a>2.1 初始化 - init()</h2><figure class="highlight js"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 浏览器能力检测  </span></div><div class="line"><span class="keyword">var</span> canvasSupport = !!<span class="built_in">document</span>.createElement(<span class="string">'canvas'</span>).getContext;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">function</span> <span class="title">init</span>(<span class="params"></span>) </span>&#123;</div><div class="line">  <span class="keyword">if</span> (!canvasSupport) &#123; <span class="keyword">return</span>; &#125;</div><div class="line">  <span class="comment">// 创建canvas标签添加到页面</span></div><div class="line">  ... ...</div><div class="line">  <span class="comment">// 计算需要的粒子数</span></div><div class="line">  <span class="comment">// density - 稠度，即每隔一定像素空间才生成一个粒子</span></div><div class="line">  <span class="keyword">var</span> numParticles = <span class="built_in">Math</span>.round((canvas.width * canvas.height) / options.density);</div><div class="line">  <span class="comment">// 创建粒子对象实例，并缓存起来方便使用</span></div><div class="line">  <span class="keyword">for</span> (<span class="keyword">var</span> i = <span class="number">0</span>; i &lt; numParticles; i++) &#123;</div><div class="line">    <span class="keyword">var</span> p = <span class="keyword">new</span> Particle();</div><div class="line">    p.setStackPos(i);</div><div class="line">    particles.push(p);</div><div class="line">  &#125;;</div><div class="line"></div><div class="line">  <span class="comment">// 一些事件的绑定</span></div><div class="line">  <span class="built_in">window</span>.addEventListener(<span class="string">'resize'</span>, <span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123; ... ... &#125;, <span class="literal">false</span>);</div><div class="line">  <span class="built_in">document</span>.addEventListener(<span class="string">'mousemove'</span>, <span class="function"><span class="keyword">function</span>(<span class="params">e</span>) </span>&#123; ... ... &#125;, <span class="literal">false</span>);</div><div class="line">  <span class="comment">// 当移动端支持重力感应事件时使用</span></div><div class="line">  <span class="keyword">if</span> (orientationSupport &amp;&amp; !desktop) &#123;</div><div class="line">    <span class="built_in">window</span>.addEventListener(<span class="string">'deviceorientation'</span>, <span class="function"><span class="keyword">function</span> (<span class="params"></span>) </span>&#123; ... ... &#125;, <span class="literal">true</span>);</div><div class="line">  &#125;</div><div class="line">  <span class="comment">// 绘制并开始动画</span></div><div class="line">  draw();</div><div class="line">  <span class="comment">// 触发事件回调  </span></div><div class="line">  hook(<span class="string">'onInit'</span>);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<blockquote>
+<p>其中，在调用时就会执行的主要是<code>new Particle()</code>创建粒子对象，以及<code>draw()</code>的绘制。</p>
+</blockquote>
+<h2 id="2-2-粒子构造函数-Particle"><a href="#2-2-粒子构造函数-Particle" class="headerlink" title="2.2 粒子构造函数 - Particle()"></a>2.2 粒子构造函数 - Particle()</h2><figure class="highlight js"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">function</span> <span class="title">Particle</span>(<span class="params"></span>) </span>&#123;</div><div class="line">  <span class="keyword">this</span>.stackPos;</div><div class="line">  <span class="keyword">this</span>.active = <span class="literal">true</span>;</div><div class="line">  <span class="comment">// 随机生成粒子的Z轴位置，制造出不同层级粒子的视差效果</span></div><div class="line">  <span class="keyword">this</span>.layer = <span class="built_in">Math</span>.ceil(<span class="built_in">Math</span>.random() * <span class="number">3</span>);</div><div class="line">  <span class="comment">// 为粒子生成随机位置属性</span></div><div class="line">  <span class="keyword">this</span>.position = &#123;</div><div class="line">    <span class="attr">x</span>: <span class="built_in">Math</span>.ceil(<span class="built_in">Math</span>.random() * canvas.width),</div><div class="line">    <span class="attr">y</span>: <span class="built_in">Math</span>.ceil(<span class="built_in">Math</span>.random() * canvas.height)</div><div class="line">  &#125;</div><div class="line">  <span class="comment">// 根据配置的粒子移动方向以及最大最小速度，生成随机速度</span></div><div class="line">  <span class="keyword">this</span>.speed = &#123;&#125;</div><div class="line">  <span class="comment">// X轴方向速度</span></div><div class="line">  <span class="keyword">switch</span> (options.directionX) &#123;</div><div class="line">    <span class="keyword">case</span> <span class="string">'left'</span>:</div><div class="line">      ... ...</div><div class="line">    case <span class="string">'right'</span>:</div><div class="line">      ... ...</div><div class="line">    default:</div><div class="line">      <span class="comment">// 正负随机，即生成随机方向及大小的速度</span></div><div class="line">      <span class="keyword">this</span>.speed.x = +((-options.maxSpeedX / <span class="number">2</span>) + (<span class="built_in">Math</span>.random() * options.maxSpeedX)).toFixed(<span class="number">2</span>);</div><div class="line">      <span class="keyword">this</span>.speed.x += <span class="keyword">this</span>.speed.x &gt; <span class="number">0</span> ? options.minSpeedX : -options.minSpeedX;</div><div class="line">      <span class="keyword">break</span>;</div><div class="line">  &#125;</div><div class="line">  <span class="comment">// Y轴方向速度，同上</span></div><div class="line">  ... ...</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="2-3-初始化完成，开始绘制-draw"><a href="#2-3-初始化完成，开始绘制-draw" class="headerlink" title="2.3 初始化完成，开始绘制 - draw()"></a>2.3 初始化完成，开始绘制 - draw()</h2><figure class="highlight js"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">function</span> <span class="title">draw</span>(<span class="params"></span>) </span>&#123;</div><div class="line">  <span class="comment">// 绘制前清除画布</span></div><div class="line">  ctx.clearRect(<span class="number">0</span>, <span class="number">0</span>, canvas.width, canvas.height);</div><div class="line"></div><div class="line">  <span class="comment">// 更新粒子位子</span></div><div class="line">  <span class="keyword">for</span> (<span class="keyword">var</span> i = <span class="number">0</span>; i &lt; particles.length; i++) &#123;</div><div class="line">    <span class="comment">// 更新的结果主要是改变粒子位置属性[x, y]，每次调用会叠加一次速度值</span></div><div class="line">    particles[i].updatePosition();</div><div class="line">  &#125;;</div><div class="line">  <span class="comment">// 绘制粒子</span></div><div class="line">  <span class="keyword">for</span> (<span class="keyword">var</span> i = <span class="number">0</span>; i &lt; particles.length; i++) &#123;</div><div class="line">    <span class="comment">// 粒子位置已计算更新，追加上偏移值进行绘制，并找出与该点距离为一定范围的点进行线条绘制</span></div><div class="line">    particles[i].draw();</div><div class="line">  &#125;;</div><div class="line">  <span class="comment">// timeout实现动画</span></div><div class="line">  <span class="keyword">if</span> (!paused) &#123;</div><div class="line">    <span class="comment">// 实际就是调用了setTimeout()，返回值raf即timeout的id，可以用于清除延时</span></div><div class="line">    raf = requestAnimationFrame(draw);</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<blockquote>
+<p>如上，比较重要的就是粒子实例方法<code>.updatePosition()</code></p>
+</blockquote>
+<h2 id="2-4-计算粒子位置-particle-updatePosition"><a href="#2-4-计算粒子位置-particle-updatePosition" class="headerlink" title="2.4 计算粒子位置 - particle.updatePosition()"></a>2.4 计算粒子位置 - particle.updatePosition()</h2><figure class="highlight js"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div></pre></td><td class="code"><pre><div class="line">Particle.prototype.updatePosition = <span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</div><div class="line">  <span class="keyword">if</span> (options.parallax) &#123;</div><div class="line">    <span class="keyword">if</span> (orientationSupport &amp;&amp; !desktop) &#123;</div><div class="line">      ... ...</div><div class="line">      <span class="comment">// 以上为重力感应时的逻辑，在PC时直接使用鼠标位置</span></div><div class="line">    &#125; <span class="keyword">else</span> &#123;</div><div class="line">      pointerX = mouseX;</div><div class="line">      pointerY = mouseY;</div><div class="line">    &#125;</div><div class="line">    <span class="comment">// 计算偏移值，[winW/2, winH/2]即画布中点，比较鼠标位置和中点计算出一个偏移向量</span></div><div class="line">    <span class="comment">// 依照此偏移量来计算偏移值，再乘以不同的Z轴系数就能制造视差效果了</span></div><div class="line">    <span class="keyword">this</span>.parallaxTargX = (pointerX - (winW / <span class="number">2</span>)) / (options.parallaxMultiplier * <span class="keyword">this</span>.layer);</div><div class="line">    <span class="keyword">this</span>.parallaxOffsetX += (<span class="keyword">this</span>.parallaxTargX - <span class="keyword">this</span>.parallaxOffsetX) / <span class="number">10</span>; </div><div class="line">    <span class="keyword">this</span>.parallaxTargY = (pointerY - (winH / <span class="number">2</span>)) / (options.parallaxMultiplier * <span class="keyword">this</span>.layer);</div><div class="line">    <span class="keyword">this</span>.parallaxOffsetY += (<span class="keyword">this</span>.parallaxTargY - <span class="keyword">this</span>.parallaxOffsetY) / <span class="number">10</span>; </div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">var</span> elWidth = element.offsetWidth;</div><div class="line">  <span class="keyword">var</span> elHeight = element.offsetHeight;</div><div class="line">  </div><div class="line">  <span class="comment">// 计算时校验超出边沿的情况, 超出时反向移动</span></div><div class="line">  <span class="keyword">switch</span> (options.directionX) &#123;</div><div class="line">    <span class="keyword">case</span> <span class="string">'left'</span>:</div><div class="line">      ... ...</div><div class="line">    case <span class="string">'right'</span>:</div><div class="line">      ... ...</div><div class="line">    default:</div><div class="line">      <span class="keyword">if</span> (<span class="keyword">this</span>.position.x + <span class="keyword">this</span>.speed.x + <span class="keyword">this</span>.parallaxOffsetX &gt; elWidth || <span class="keyword">this</span>.position.x + <span class="keyword">this</span>.speed.x + <span class="keyword">this</span>.parallaxOffsetX &lt; <span class="number">0</span>) &#123;</div><div class="line">        <span class="keyword">this</span>.speed.x = -<span class="keyword">this</span>.speed.x;</div><div class="line">      &#125;</div><div class="line">      <span class="keyword">break</span>;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// 累加速度到位置上</span></div><div class="line">  <span class="keyword">this</span>.position.x += <span class="keyword">this</span>.speed.x;</div><div class="line">  <span class="keyword">this</span>.position.y += <span class="keyword">this</span>.speed.y;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>到此，粒子系统初始化到定时触发动画的代码大致就是这些了。</p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;img src=&quot;/2017/01/07/web-particleground/bg.jpg&quot; alt=&quot;bg.jpg&quot; title=&quot;&quot;&gt;
+&lt;p&gt;首先可以来看下这个插件的demo：&lt;a href=&quot;https://jnicol.github.io/particleground/&quot;&gt;https://jnicol.github.io/particleground/&lt;/a&gt;&lt;br&gt;一种比较常见的粒子背景，有连线，有3d视差效果。&lt;br&gt;代码：&lt;a href=&quot;https://github.com/jnicol/particleground&quot;&gt;github地址&lt;/a&gt;  &lt;/p&gt;
+&lt;p&gt;源代码很短，本文也算不上啥解析文章，只是阅读笔记。 &lt;/p&gt;
+&lt;h1 id=&quot;1-基本的粒子动画&quot;&gt;&lt;a href=&quot;#1-基本的粒子动画&quot; class=&quot;headerlink&quot; title=&quot;1.基本的粒子动画&quot;&gt;&lt;/a&gt;1.基本的粒子动画&lt;/h1&gt;&lt;p&gt;在canvas画布上绘制复数实心圆点即粒子，每个粒子都有它的粒子对象实例，用于记录它的大小、位置信息以及速度，通过timeout来更新粒子的位置形成粒子动画。大概类似下面这样：  &lt;/p&gt;
+&lt;figure class=&quot;highlight js&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre&gt;&lt;div class=&quot;line&quot;&gt;1&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;2&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;3&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;4&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;5&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;6&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;7&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;8&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;9&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;10&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;11&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;12&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;13&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;14&lt;/div&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&quot;code&quot;&gt;&lt;pre&gt;&lt;div class=&quot;line&quot;&gt;&lt;span class=&quot;keyword&quot;&gt;var&lt;/span&gt; allParticles = [];&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;&lt;span class=&quot;comment&quot;&gt;// 初始化粒子&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;&lt;span class=&quot;keyword&quot;&gt;for&lt;/span&gt;(&lt;span class=&quot;keyword&quot;&gt;var&lt;/span&gt; i = &lt;span class=&quot;number&quot;&gt;0&lt;/span&gt;; i &amp;lt; &lt;span class=&quot;number&quot;&gt;100&lt;/span&gt;; i++) &amp;#123;&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;    &lt;span class=&quot;keyword&quot;&gt;var&lt;/span&gt; p = &lt;span class=&quot;keyword&quot;&gt;new&lt;/span&gt; Particle();&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;    allParticles.push(p);&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;&amp;#125;&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;setTimeout(&lt;span class=&quot;function&quot;&gt;&lt;span class=&quot;keyword&quot;&gt;function&lt;/span&gt;(&lt;span class=&quot;params&quot;&gt;&lt;/span&gt;) &lt;/span&gt;&amp;#123;&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;    allParticles.forEach(&lt;span class=&quot;function&quot;&gt;&lt;span class=&quot;keyword&quot;&gt;function&lt;/span&gt;(&lt;span class=&quot;params&quot;&gt;item&lt;/span&gt;) &lt;/span&gt;&amp;#123;&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;        &lt;span class=&quot;comment&quot;&gt;// 更新粒子位置&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;        item.update();&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;    &amp;#125;);&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;    &lt;span class=&quot;comment&quot;&gt;// 根据各个粒子的位置绘制到canvas上&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;    draw(allParticles);&lt;/div&gt;&lt;div class=&quot;line&quot;&gt;&amp;#125;, &lt;span class=&quot;number&quot;&gt;30&lt;/span&gt;);&lt;/div&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+    
+    </summary>
+    
+      <category term="WEB前端" scheme="http://lenrinfvck.cn/categories/WEB%E5%89%8D%E7%AB%AF/"/>
+    
+    
+      <category term="canvas" scheme="http://lenrinfvck.cn/tags/canvas/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>博客迁移基本完成，纪念下坑掉的老blog</title>
+    <link href="http://lenrinfvck.cn/2016/11/27/web-oldblog/"/>
+    <id>http://lenrinfvck.cn/2016/11/27/web-oldblog/</id>
+    <published>2016-11-27T10:41:00.000Z</published>
+    <updated>2016-11-27T13:15:30.000Z</updated>
+    
+    <content type="html"><![CDATA[<img src="/2016/11/27/web-oldblog/01.jpg" alt="新老站点合影" title="新老站点合影">
+<h1 id="1-技术栈对比"><a href="#1-技术栈对比" class="headerlink" title="1.技术栈对比"></a>1.技术栈对比</h1><h2 id="现在"><a href="#现在" class="headerlink" title="现在"></a>现在</h2><p>使用基于<a href="https://hexo.io/" target="_blank" rel="external">hexo</a>的静态博客，本地是hexo搭建的动态页面，部署时使用自带命令生成静态html文件，之后push到github后通过gitpage呈现。文章书写主要依靠markdown和html。 </p>
+<p>静态博客，免费服务器，免费域名<a href="https://lenrinfvck.github.io" target="_blank" rel="external">lenrinfvck.github.io</a>。<br>虽然是静态页面，但是可以借由很多第三方云服务使用一些动态功能呢，如回复统计一类的。    </p>
+<h2 id="以前"><a href="#以前" class="headerlink" title="以前"></a>以前</h2><p>自己使用 node+express+mongodb，部署在阿里云服务器上，linux主机预装centOS的裸机。所有动态数据存入数据库动态展示，文章使用了动态编译markdown的形式，同时也自行构建了一些语法功能，如嵌入标签分类和时期等。   </p>
+<p>代码部署在<a href="https://coding.net/" target="_blank" rel="external">coding</a>的git上，使用<a href="/2016/01/19/web-webhook-coding/">webhook</a>自动同步到服务器。</p>
+<p>动态博客，阿里云计流量28.8元/月，域名<a href="https://lenrinfvck.cn">lenrinfvck.cn</a> (服务器到期) 39元/年，维护博客本身就很烦，更难得写文章。忙起来后就没咋弄了，坑掉了。</p>
+<a id="more"></a>
+<h1 id="2-相关博文"><a href="#2-相关博文" class="headerlink" title="2.相关博文"></a>2.相关博文</h1><ul>
+<li><a href="/2016/01/19/web-webhook-coding/">Node服务器搭建 - 阿里云ECS</a>  </li>
+<li><a href="/2016/01/17/web-node-server/">git代码自动部署，coding中webhook使用</a>  </li>
+</ul>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;img src=&quot;/2016/11/27/web-oldblog/01.jpg&quot; alt=&quot;新老站点合影&quot; title=&quot;新老站点合影&quot;&gt;
+&lt;h1 id=&quot;1-技术栈对比&quot;&gt;&lt;a href=&quot;#1-技术栈对比&quot; class=&quot;headerlink&quot; title=&quot;1.技术栈对比&quot;&gt;&lt;/a&gt;1.技术栈对比&lt;/h1&gt;&lt;h2 id=&quot;现在&quot;&gt;&lt;a href=&quot;#现在&quot; class=&quot;headerlink&quot; title=&quot;现在&quot;&gt;&lt;/a&gt;现在&lt;/h2&gt;&lt;p&gt;使用基于&lt;a href=&quot;https://hexo.io/&quot;&gt;hexo&lt;/a&gt;的静态博客，本地是hexo搭建的动态页面，部署时使用自带命令生成静态html文件，之后push到github后通过gitpage呈现。文章书写主要依靠markdown和html。 &lt;/p&gt;
+&lt;p&gt;静态博客，免费服务器，免费域名&lt;a href=&quot;https://lenrinfvck.github.io&quot;&gt;lenrinfvck.github.io&lt;/a&gt;。&lt;br&gt;虽然是静态页面，但是可以借由很多第三方云服务使用一些动态功能呢，如回复统计一类的。    &lt;/p&gt;
+&lt;h2 id=&quot;以前&quot;&gt;&lt;a href=&quot;#以前&quot; class=&quot;headerlink&quot; title=&quot;以前&quot;&gt;&lt;/a&gt;以前&lt;/h2&gt;&lt;p&gt;自己使用 node+express+mongodb，部署在阿里云服务器上，linux主机预装centOS的裸机。所有动态数据存入数据库动态展示，文章使用了动态编译markdown的形式，同时也自行构建了一些语法功能，如嵌入标签分类和时期等。   &lt;/p&gt;
+&lt;p&gt;代码部署在&lt;a href=&quot;https://coding.net/&quot;&gt;coding&lt;/a&gt;的git上，使用&lt;a href=&quot;/2016/01/19/web-webhook-coding/&quot;&gt;webhook&lt;/a&gt;自动同步到服务器。&lt;/p&gt;
+&lt;p&gt;动态博客，阿里云计流量28.8元/月，域名&lt;a href=&quot;https://lenrinfvck.cn&quot;&gt;lenrinfvck.cn&lt;/a&gt; (服务器到期) 39元/年，维护博客本身就很烦，更难得写文章。忙起来后就没咋弄了，坑掉了。&lt;/p&gt;
+    
+    </summary>
+    
+      <category term="WEB前端" scheme="http://lenrinfvck.cn/categories/WEB%E5%89%8D%E7%AB%AF/"/>
+    
+    
+      <category term="nodejs" scheme="http://lenrinfvck.cn/tags/nodejs/"/>
+    
+      <category term="express" scheme="http://lenrinfvck.cn/tags/express/"/>
+    
+      <category term="mongodb" scheme="http://lenrinfvck.cn/tags/mongodb/"/>
+    
+      <category term="WEB项目" scheme="http://lenrinfvck.cn/tags/WEB%E9%A1%B9%E7%9B%AE/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>git代码自动部署，coding中webhook使用</title>
+    <link href="http://lenrinfvck.cn/2016/01/19/web-webhook-coding/"/>
+    <id>http://lenrinfvck.cn/2016/01/19/web-webhook-coding/</id>
+    <published>2016-01-19T14:32:00.000Z</published>
+    <updated>2016-11-27T08:48:45.000Z</updated>
+    
+    <content type="html"><![CDATA[<blockquote>
+<p>环境：<br>    NodeJs: 4.0+<br>    git: 1.8+<br>官方说明: <a href="https://open.coding.net/webhook.html" target="_blank" rel="external">webhook说明</a>  </p>
+</blockquote>
+<h1 id="工作原理"><a href="#工作原理" class="headerlink" title="工作原理"></a>工作原理</h1><p>基于git的githook功能，coding提供的webhook服务，github也有类似服务。<br>监听对远程仓库的操作，执行相应操作，此处webhook提供的处理是发送一个http请求到指定url地址。这时就可以在部署服务器上开个路由监听这个地址的访问，如果是coding发出的，则git pull拉去代码，并重启服务等。  </p>
+<h1 id="步骤"><a href="#步骤" class="headerlink" title="步骤"></a>步骤</h1><h2 id="1-webhook监听创建"><a href="#1-webhook监听创建" class="headerlink" title="1.webhook监听创建"></a>1.webhook监听创建</h2><img src="/2016/01/19/web-webhook-coding/webhook01.jpg" alt="webhook设置界面" title="webhook设置界面">  
+<p>在此处新建一个监听，填入目标URL地址和加密口令，一般是监听push事件。 </p>
+<a id="more"></a>
+<h2 id="2-部署服务器处理webhook请求"><a href="#2-部署服务器处理webhook请求" class="headerlink" title="2.部署服务器处理webhook请求"></a>2.部署服务器处理webhook请求</h2><p>参考官方写法：<a href="https://open.coding.net/webhook.html" target="_blank" rel="external">coding案例写法</a><br><figure class="highlight js"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">var</span> process = <span class="built_in">require</span>(<span class="string">'child_process'</span>);</div><div class="line"></div><div class="line"><span class="built_in">module</span>.exports = <span class="function"><span class="keyword">function</span>(<span class="params">req, res, next</span>) </span>&#123;</div><div class="line">    <span class="built_in">console</span>.log(<span class="string">'print'</span>, req.body);</div><div class="line">    <span class="built_in">console</span>.info(req.body[<span class="string">"token"</span>]);</div><div class="line">    <span class="keyword">if</span>(<span class="string">'口令'</span> === req.body[<span class="string">'token'</span>] )&#123;</div><div class="line">        <span class="comment">//console.info(process);</span></div><div class="line">        process.exec(<span class="string">'git pull origin master:master'</span>, &#123;<span class="string">'cwd'</span>:<span class="string">'/www/'</span>&#125;, </div><div class="line">            <span class="function"><span class="keyword">function</span> (<span class="params">error, stdout, stderr</span>) </span>&#123;</div><div class="line">                <span class="comment">//配置了upstart后的重启服务</span></div><div class="line">                process.exec(<span class="string">'restart mynode'</span>);</div><div class="line">                <span class="built_in">console</span>.log(<span class="string">'stdout========================\n'</span> + stdout);</div><div class="line">                <span class="built_in">console</span>.log(<span class="string">'stderr========================\n'</span> + stderr);</div><div class="line">                <span class="keyword">if</span> (error !== <span class="literal">null</span>) &#123;</div><div class="line">                    res.send(<span class="string">'&lt;pre&gt;fail!!!\n'</span> + stdout + error + <span class="string">'&lt;/pre&gt;'</span>);</div><div class="line">                &#125; <span class="keyword">else</span> &#123;</div><div class="line">                    res.send(<span class="string">'&lt;pre&gt;done!!!\n'</span> + stdout + <span class="string">'&lt;/pre&gt;'</span>);</div><div class="line">                &#125;</div><div class="line">            &#125;);</div><div class="line">    &#125; <span class="keyword">else</span> &#123;</div><div class="line">        <span class="built_in">console</span>.log(<span class="string">' failed token '</span>)</div><div class="line">        res.send(<span class="string">'&lt;pre&gt;token不正确?&lt;/pre&gt;'</span>);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>之后可在步骤1的设置界面出测试webhook是否成功，在配置界面会有webhook发送接收的记录信息。  </p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;blockquote&gt;
+&lt;p&gt;环境：&lt;br&gt;    NodeJs: 4.0+&lt;br&gt;    git: 1.8+&lt;br&gt;官方说明: &lt;a href=&quot;https://open.coding.net/webhook.html&quot;&gt;webhook说明&lt;/a&gt;  &lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h1 id=&quot;工作原理&quot;&gt;&lt;a href=&quot;#工作原理&quot; class=&quot;headerlink&quot; title=&quot;工作原理&quot;&gt;&lt;/a&gt;工作原理&lt;/h1&gt;&lt;p&gt;基于git的githook功能，coding提供的webhook服务，github也有类似服务。&lt;br&gt;监听对远程仓库的操作，执行相应操作，此处webhook提供的处理是发送一个http请求到指定url地址。这时就可以在部署服务器上开个路由监听这个地址的访问，如果是coding发出的，则git pull拉去代码，并重启服务等。  &lt;/p&gt;
+&lt;h1 id=&quot;步骤&quot;&gt;&lt;a href=&quot;#步骤&quot; class=&quot;headerlink&quot; title=&quot;步骤&quot;&gt;&lt;/a&gt;步骤&lt;/h1&gt;&lt;h2 id=&quot;1-webhook监听创建&quot;&gt;&lt;a href=&quot;#1-webhook监听创建&quot; class=&quot;headerlink&quot; title=&quot;1.webhook监听创建&quot;&gt;&lt;/a&gt;1.webhook监听创建&lt;/h2&gt;&lt;img src=&quot;/2016/01/19/web-webhook-coding/webhook01.jpg&quot; alt=&quot;webhook设置界面&quot; title=&quot;webhook设置界面&quot;&gt;  
+&lt;p&gt;在此处新建一个监听，填入目标URL地址和加密口令，一般是监听push事件。 &lt;/p&gt;
+    
+    </summary>
+    
+      <category term="WEB前端" scheme="http://lenrinfvck.cn/categories/WEB%E5%89%8D%E7%AB%AF/"/>
+    
+    
+      <category term="githook" scheme="http://lenrinfvck.cn/tags/githook/"/>
+    
+      <category term="webhook" scheme="http://lenrinfvck.cn/tags/webhook/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>在vagrant搭建基于CentOS6的LAMP开发环境</title>
+    <link href="http://lenrinfvck.cn/2016/01/19/web-vagrant-php-init/"/>
+    <id>http://lenrinfvck.cn/2016/01/19/web-vagrant-php-init/</id>
+    <published>2016-01-19T13:41:23.000Z</published>
+    <updated>2016-11-27T08:12:31.000Z</updated>
+    
+    <content type="html"><![CDATA[<blockquote>
+<p>关于vagrant安装和使用：<a href="https://github.com/lenrinfvck/ntrf-doc/blob/master/%E7%8E%AF%E5%A2%83%E5%8F%8A%E5%B7%A5%E5%85%B7/Vagrant%E4%BD%BF%E7%94%A8.md" target="_blank" rel="external">vagrant使用</a></p>
+</blockquote>
+<p>本次是在virtual+vagrant下安装的centos，在此基础上安装LAMP环境.<br>centos.box下载：<a href="http://www.vagrantbox.es/" target="_blank" rel="external">http://www.vagrantbox.es/</a> </p>
+<blockquote>
+<p>相关版本：<br>LINUX系统: centOS6.4 i386 Minimal</p>
+</blockquote>
+<a id="more"></a>
+<h1 id="准备工作"><a href="#准备工作" class="headerlink" title="准备工作"></a>准备工作</h1><h2 id="1-配置防火墙，开启80端口、3306端口"><a href="#1-配置防火墙，开启80端口、3306端口" class="headerlink" title="(1)配置防火墙，开启80端口、3306端口"></a>(1)配置防火墙，开启80端口、3306端口</h2><p>修改如下文件  </p>
+<blockquote>
+<p>/etc/sysconfig/iptables  </p>
+</blockquote>
+<p>可直接vi修改，或则使用filezila等软件修改  </p>
+<pre><code>-A INPUT -m state --state NEW -m tcp -p tcp --dport 80 -j ACCEPT  
+-A INPUT -m state --state NEW -m tcp -p tcp --dport 3306 -j ACCEPT  
+</code></pre><p>重启防火墙 <code>$ /etc/init.d/iptables restart</code></p>
+<h2 id="2-关闭SELINUX"><a href="#2-关闭SELINUX" class="headerlink" title="(2)关闭SELINUX"></a>(2)关闭SELINUX</h2><p>修改如下文件  </p>
+<blockquote>
+<p>/etc/selinux/config  </p>
+</blockquote>
+<pre><code>#SELINUX=enforcing //注释掉
+#SELINUXTYPE=targeted //注释掉
+SELINUX=disabled //增加
+</code></pre><p>重启系统<code>shutdown -r now</code>  </p>
+<h1 id="安装LAMP"><a href="#安装LAMP" class="headerlink" title="安装LAMP"></a>安装LAMP</h1><h2 id="1-安装Apache"><a href="#1-安装Apache" class="headerlink" title="(1)安装Apache"></a>(1)安装Apache</h2><pre><code>yum install httpd  
+</code></pre><p>等待安装，根据提示按y结束<br>启动Apache <code>/etc/init.d/http start</code><br>开机自启动 <code>chkconfig httpd on</code></p>
+<h2 id="2-安装MySQL"><a href="#2-安装MySQL" class="headerlink" title="(2)安装MySQL"></a>(2)安装MySQL</h2><h3 id="按序输入如下指令"><a href="#按序输入如下指令" class="headerlink" title="按序输入如下指令"></a>按序输入如下指令</h3><p>询问是否要安装，输入Y即可自动安装,直到安装完成<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">yum install mysql mysql-server</div></pre></td></tr></table></figure></p>
+<p>启动MySQL<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">/etc/init.d/mysqld start</div></pre></td></tr></table></figure></p>
+<p>设为开机启动<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">chkconfig mysqld on</div></pre></td></tr></table></figure></p>
+<p>拷贝配置文件（注意：如果/etc目录下面默认有一个my.cnf，直接覆盖即可）<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">cp /usr/share/mysql/my-medium.cnf /etc/my.cnf</div></pre></td></tr></table></figure></p>
+<h3 id="设置root密码"><a href="#设置root密码" class="headerlink" title="设置root密码"></a>设置root密码</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">mysql_secure_installation  </div><div class="line"><span class="comment">#回车，根据提示输入Y(输入密码，默认为无，即回车)  </span></div><div class="line"><span class="comment">#输入2次密码，回车  </span></div><div class="line"><span class="comment">#根据提示一路输入Y  </span></div><div class="line"><span class="comment">#最后出现：Thanks for using MySQL!</span></div></pre></td></tr></table></figure>
+<p>MySql密码设置完成，重新启动 MySQL：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">/etc/init.d/mysqld restart  <span class="comment">#重启</span></div><div class="line">/etc/init.d/mysqld stop  <span class="comment">#停止</span></div><div class="line">/etc/init.d/mysqld start  <span class="comment">#启动</span></div></pre></td></tr></table></figure></p>
+<h2 id="3-安装PHP5"><a href="#3-安装PHP5" class="headerlink" title="(3)安装PHP5"></a>(3)安装PHP5</h2><h3 id="安装php5"><a href="#安装php5" class="headerlink" title="安装php5"></a>安装php5</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">yum install php</div></pre></td></tr></table></figure>
+<p>根据提示一路Y  </p>
+<h3 id="安装PHP组件，使-PHP5-支持-MySQL"><a href="#安装PHP组件，使-PHP5-支持-MySQL" class="headerlink" title="安装PHP组件，使 PHP5 支持 MySQL"></a>安装PHP组件，使 PHP5 支持 MySQL</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">yum install php-mysql php-gd libjpeg* php-imap php-ldap php-odbc php-pear php-xml php-xmlrpc php-mbstring php-mcrypt php-bcmath php-mhash libmcrypt</div></pre></td></tr></table></figure>
+<p>这里选择以上安装包进行安装<br>根据提示输入Y回车<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">/etc/init.d/mysqld restart <span class="comment">#重启MySql  </span></div><div class="line">/etc/init.d/httpd restart <span class="comment">#重启Apche</span></div></pre></td></tr></table></figure></p>
+<h3 id="升级php-5-5"><a href="#升级php-5-5" class="headerlink" title="升级php-5.5"></a>升级php-5.5</h3><p>删除现有 php-common<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">yum -y remove php-common</div></pre></td></tr></table></figure></p>
+<p>设置新源<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">rpm -Uvh https://mirror.webtatic.com/yum/el6/latest.rpm</div></pre></td></tr></table></figure></p>
+<p>安装新的 php 以及 php 插件<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">yum install php55w php55w-cli php55w-common php55w-gd php55w-ldap php55w-mbstring php55w-mcrypt php55w-mysql php55w-pdo php55w-pecl-memcache php55w-devel php55w-xml php55w-xmlrpc php55w-opcache</div><div class="line"></div><div class="line">/etc/init.d/httpd restart <span class="comment">#重启Apche</span></div><div class="line">php -v <span class="comment">#检查版本</span></div></pre></td></tr></table></figure></p>
+<h1 id="相关配置"><a href="#相关配置" class="headerlink" title="相关配置"></a>相关配置</h1><h2 id="1-Apache配置"><a href="#1-Apache配置" class="headerlink" title="(1)Apache配置"></a>(1)Apache配置</h2><p>配置文件如下</p>
+<blockquote>
+<p>/etc/httpd/conf/httpd.conf  </p>
+</blockquote>
+<ul>
+<li><p><strong>/var/www/html</strong><br>  代码根目录，使用vagrant时改为<code>/vagrant</code>，同时设置权限<code>chown apache.apache -R /var/www/html</code></p>
+</li>
+<li><p><strong>ServerTokens OS</strong><br>在44行 修改为：ServerTokens Prod （在出现错误页的时候不显示服务器操作系统的名称）  </p>
+</li>
+<li><p><strong>ServerSignature On</strong><br>在536行 修改为：ServerSignature Off （在错误页中不显示Apache的版本）  </p>
+</li>
+<li><p><strong>Options Indexes FollowSymLinks</strong><br>在331行 修改为：Options Includes ExecCGI<br>FollowSymLinks（允许服务器执行CGI及SSI，禁止列出目录）  </p>
+</li>
+<li><p><strong>#AddHandler cgi-script .cgi</strong><br>在796行 修改为：AddHandler cgi-script .cgi .pl （允许扩展名为.pl的CGI脚本运行）</p>
+</li>
+<li><p><strong>AllowOverride None</strong><br>在338行 修改为：AllowOverride All （允许.htaccess）  </p>
+</li>
+<li><p><strong>AddDefaultCharset UTF-8</strong><br>在759行 修改为：AddDefaultCharset GB2312　（添加GB2312为默认编码）  </p>
+</li>
+<li><p><strong>Options Indexes MultiViews FollowSymLinks</strong><br>在554行 修改为 Options MultiViews FollowSymLinks（不在浏览器上显示树状目录结构）</p>
+</li>
+<li><p><strong>DirectoryIndex index.html index.html.var</strong><br>在402行 修改为：DirectoryIndex index.html index.htm Default.html Default.htm</p>
+</li>
+<li><p><strong>index.php Default.php index.html.var</strong><br>（设置默认首页文件，增加index.php）  </p>
+</li>
+<li><p><strong>KeepAlive Off</strong><br>在76行 修改为：KeepAlive On （允许程序性联机）  </p>
+</li>
+<li><p><strong>MaxKeepAliveRequests 100</strong><br>在83行 修改为：MaxKeepAliveRequests 1000 （增加同时连接数）  </p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">/etc/init.d/httpd restart <span class="comment">#重启  </span></div><div class="line">rm <span class="_">-f</span> /etc/httpd/conf.d/welcome.conf /var/www/error/noindex.html <span class="comment">#删除默认测试页</span></div></pre></td></tr></table></figure>
+</li>
+</ul>
+<h2 id="2-PHP配置"><a href="#2-PHP配置" class="headerlink" title="(2)PHP配置"></a>(2)PHP配置</h2><p>配置文件如下</p>
+<blockquote>
+<p>/etc/php.ini  </p>
+</blockquote>
+<ul>
+<li><p><strong>date.timezone = PRC</strong><br>在946行 把前面的分号去掉，改为date.timezone = PRC  </p>
+</li>
+<li><p><strong>expose_php = Off</strong><br>在432行 禁止显示php版本的信息  </p>
+</li>
+<li><p><strong>magic_quotes_gpc = On</strong><br>在745行 打开magic_quotes_gpc来防止SQL注入  </p>
+</li>
+<li><p><strong>short_open_tag = ON</strong><br>在229行支持php短标签</p>
+</li>
+</ul>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;blockquote&gt;
+&lt;p&gt;关于vagrant安装和使用：&lt;a href=&quot;https://github.com/lenrinfvck/ntrf-doc/blob/master/%E7%8E%AF%E5%A2%83%E5%8F%8A%E5%B7%A5%E5%85%B7/Vagrant%E4%BD%BF%E7%94%A8.md&quot;&gt;vagrant使用&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;本次是在virtual+vagrant下安装的centos，在此基础上安装LAMP环境.&lt;br&gt;centos.box下载：&lt;a href=&quot;http://www.vagrantbox.es/&quot;&gt;http://www.vagrantbox.es/&lt;/a&gt; &lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;相关版本：&lt;br&gt;LINUX系统: centOS6.4 i386 Minimal&lt;/p&gt;
+&lt;/blockquote&gt;
+    
+    </summary>
+    
+      <category term="WEB前端" scheme="http://lenrinfvck.cn/categories/WEB%E5%89%8D%E7%AB%AF/"/>
+    
+    
+      <category term="php" scheme="http://lenrinfvck.cn/tags/php/"/>
+    
+      <category term="vagrant" scheme="http://lenrinfvck.cn/tags/vagrant/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Node服务器搭建 - 阿里云ECS</title>
+    <link href="http://lenrinfvck.cn/2016/01/17/web-node-server/"/>
+    <id>http://lenrinfvck.cn/2016/01/17/web-node-server/</id>
+    <published>2016-01-16T17:30:00.000Z</published>
+    <updated>2016-11-27T08:27:15.000Z</updated>
+    
+    <content type="html"><![CDATA[<blockquote>
+<p>[服务器]： 阿里云ECS，1核512MB，流量收费(￥28.8/月，￥0.72/GB)<br> [系统]：CentOS6.5 32位<br> [环境]：Node + Express + Mongodb3.0.6<br> [本机]：OSX EI Capitan  </p>
+</blockquote>
+<p>Linux，OSX直接以ssh链接，Win使用putty链接</p>
+<a id="more"></a>
+<h1 id="1-服务器基本操作"><a href="#1-服务器基本操作" class="headerlink" title="1.服务器基本操作"></a>1.服务器基本操作</h1><p>首先选配安装，设置root密码，获得公网IP。</p>
+<h2 id="1-1-服务器登陆"><a href="#1-1-服务器登陆" class="headerlink" title="1.1 服务器登陆"></a>1.1 服务器登陆</h2><p>主机控制台<code>ssh root@[ip]</code>登陆后按提示输入root的密码。<br>如：<code>ssh root@110.12.32.12</code>  </p>
+<h2 id="1-2-安装FTP"><a href="#1-2-安装FTP" class="headerlink" title="1.2 安装FTP"></a>1.2 安装FTP</h2><p>服务器控制台执行<code>yum install vsftpd -v</code>，<br>设置为开机启动<code>chkconfig vsftpd on</code><br><em>注：如果出现安装到一半链接断掉，再次执行yum时会出现进程锁，可以<code>ps -ef|grep yum</code>查找进程id后<code>kill -9 id</code>结束该进程。</em>  </p>
+<h2 id="1-3-使用SFTP"><a href="#1-3-使用SFTP" class="headerlink" title="1.3 使用SFTP"></a>1.3 使用SFTP</h2><p>不使用FTP，直接用FileZila/WinSCP等软件进行SSH链接来传输文件。</p>
+<h2 id="1-4-更新git"><a href="#1-4-更新git" class="headerlink" title="1.4 更新git"></a>1.4 更新git</h2><p>删除原始git<br><code>yum remove git</code><br>从github上下载一个最新版：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"><span class="built_in">cd</span> /usr/<span class="built_in">local</span>/src</div><div class="line">wget https://github.com/git/git/archive/master.zip</div><div class="line">unzip master.zip</div><div class="line"><span class="comment">#编译安装</span></div><div class="line"><span class="built_in">cd</span> /usr/<span class="built_in">local</span>/src/git-master</div><div class="line">make configure</div><div class="line">./configure --prefix=/usr/bin</div><div class="line">make</div><div class="line">make install</div><div class="line"><span class="comment">#覆盖原有命令</span></div><div class="line">\cp -fr /usr/<span class="built_in">local</span>/src/git-master/git /usr/bin</div><div class="line">git --version</div></pre></td></tr></table></figure></p>
+<p>error解决：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="comment">#make时与zilb有关的错误</span></div><div class="line">yum install zlib-devel -y</div><div class="line"><span class="comment">#运行git clone https，https报错</span></div><div class="line">yum install curl-devel</div><div class="line"><span class="built_in">cd</span> /usr/<span class="built_in">local</span>/src/git-master </div><div class="line">./configure</div><div class="line">make</div><div class="line">make install</div></pre></td></tr></table></figure></p>
+<h1 id="2-安装Node"><a href="#2-安装Node" class="headerlink" title="2.安装Node"></a>2.安装Node</h1><p>安装nvm用于管理node，详情见<a href="http://fengmk2.com/blog/2014/03/node-env-and-faster-npm.html" target="_blank" rel="external">http://fengmk2.com/blog/2014/03/node-env-and-faster-npm.html</a>    </p>
+<p>注：退出ssh后需要重新nvm use的问题。<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="comment">#使用具体版本号</span></div><div class="line">nvm use 4.1.2</div><div class="line">nvm <span class="built_in">alias</span> default 4.1.2</div></pre></td></tr></table></figure></p>
+<h1 id="3-安装Mongodb"><a href="#3-安装Mongodb" class="headerlink" title="3.安装Mongodb"></a>3.安装Mongodb</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div></pre></td><td class="code"><pre><div class="line"><span class="comment">#下载安装包并解压，32系统只能安装对应的i686的32位版本  </span></div><div class="line">wget https://fastdl.mongodb.org/linux/mongodb-linux-i686-3.0.6.tgz</div><div class="line">tar -zxvf mongodb-linux-i686-3.0.6.tgz</div><div class="line"></div><div class="line"><span class="comment">#移动到安装目录</span></div><div class="line">mv mongodb-linux-i686-3.0.6 /usr/<span class="built_in">local</span>/mongodb</div><div class="line"></div><div class="line"><span class="comment">#新建数据库目录</span></div><div class="line">mkdir -p /app/mongodb/db</div><div class="line">mkdir -p /app/mongodb/logs</div><div class="line"></div><div class="line"><span class="comment">#添加mongodb.conf文件</span></div><div class="line"><span class="built_in">cd</span> /usr/<span class="built_in">local</span>/mongodb/bin</div><div class="line">vi mongodb.conf</div><div class="line"><span class="comment">#文件内容 START#</span></div><div class="line">dbpath = /app/mongodb/db <span class="comment">#数据文件存放目录  </span></div><div class="line">logpath = /app/mongodb/logs/mongodb.log <span class="comment">#日志文件存放目录  </span></div><div class="line">port = 27017  <span class="comment">#端口  </span></div><div class="line">fork = <span class="literal">true</span>  <span class="comment">#以守护程序的方式启用，即在后台运行  </span></div><div class="line">nohttpinterface = <span class="literal">true</span>  </div><div class="line"><span class="comment">#auth = true  #使用用户模式连接，暂时不开启</span></div><div class="line"><span class="comment">#文件内容 END#</span></div><div class="line"></div><div class="line"><span class="comment">#启动</span></div><div class="line">/usr/<span class="built_in">local</span>/mongodb/bin/mongod --config /usr/<span class="built_in">local</span>/mongodb/bin/mongodb.conf</div><div class="line"><span class="comment">#启动mongodb命令行</span></div><div class="line">/usr/<span class="built_in">local</span>/mongodb/bin/mongo</div><div class="line"></div><div class="line"><span class="comment">#重启</span></div><div class="line">ps -ef | grep mongodb <span class="comment">#得到mongodb进程id</span></div><div class="line"><span class="built_in">kill</span> -15 id</div><div class="line">/usr/<span class="built_in">local</span>/mongodb/bin/mongod --config /usr/<span class="built_in">local</span>/mongodb/bin/mongodb.conf</div></pre></td></tr></table></figure>
+<p>创建用户<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="comment">#在mongo命令行下</span></div><div class="line">use admin</div><div class="line">db.createUser(&#123;user:<span class="string">'admin'</span>,<span class="built_in">pwd</span>:<span class="string">'admin'</span>,roles:[&#123;role:<span class="string">'userAdminAnyDatabase'</span>,db:<span class="string">'admin'</span>&#125;,&#123;role:<span class="string">'readWriteAnyDatabase'</span>,db:<span class="string">'admin'</span>&#125;]&#125;)</div><div class="line"><span class="comment">#之后在config文件中将auth=true启用，并重启mongodb，之后就只能使用相应用户才能登陆</span></div></pre></td></tr></table></figure></p>
+<blockquote>
+<p>图形界面<br>mongoHub   兼容性较好，最新版支持mongodb3.0+<br>Robomongo  界面简单清晰，用户模式不支持mongodb3.0+，需要修改认证模式，比较麻烦。</p>
+</blockquote>
+<h1 id="4-Node部署"><a href="#4-Node部署" class="headerlink" title="4.Node部署"></a>4.Node部署</h1><h2 id="4-1-从Git部署代码"><a href="#4-1-从Git部署代码" class="headerlink" title="4.1 从Git部署代码"></a>4.1 从Git部署代码</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">git <span class="built_in">clone</span> https://github.com/xxx/xxx.git</div><div class="line"><span class="built_in">cd</span> xxx</div><div class="line">node app.js</div></pre></td></tr></table></figure>
+<h2 id="4-2-持久运行forever"><a href="#4-2-持久运行forever" class="headerlink" title="4.2 持久运行forever"></a>4.2 持久运行forever</h2><p>ssh断开后node程序会终止，使用forever持久运行<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="comment">#使用forever持久运行</span></div><div class="line">npm install -g forever</div><div class="line">forever start app.js</div><div class="line"></div><div class="line"><span class="comment">#其他</span></div><div class="line">forever stop app.js     <span class="comment">#停止程序</span></div><div class="line">forever list    <span class="comment">#运行中的清单</span></div><div class="line">forever -w start app.js     <span class="comment">#源码修改时自动重启</span></div></pre></td></tr></table></figure></p>
+<h2 id="4-3-Upstart维护正常运行"><a href="#4-3-Upstart维护正常运行" class="headerlink" title="4.3 Upstart维护正常运行"></a>4.3 Upstart维护正常运行</h2><p>服务器重启或崩溃后重启使用，同理可用于Vagrant等本地虚拟环境<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="comment">#安装</span></div><div class="line">yum install upstart</div><div class="line"><span class="comment">#在/etc/init下添加配置文件</span></div><div class="line">touch /etc/init/mynode.conf</div></pre></td></tr></table></figure></p>
+<p><code>mynode.conf</code>内容如下<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line"><span class="comment">#自带的upstart版本比较低，有些语法不支持，以下写法亲测有效</span></div><div class="line">author <span class="string">"lenrinfvck"</span></div><div class="line">description <span class="string">"mynode"</span></div><div class="line"></div><div class="line"><span class="comment">#start on (local-filesystems and net-device-up IFACE=eh0)</span></div><div class="line">start on startup</div><div class="line">stop on shutdown</div><div class="line">respawn  </div><div class="line"><span class="comment">#env NODE_ENV=production  </span></div><div class="line"><span class="comment">#此node路径为nvm设置的PATH路径，非nvm安装的使用其他相应路径</span></div><div class="line"><span class="built_in">exec</span> /var/gitclone/nvm/versions/node/v4.1.2/bin/node /www/app.js</div></pre></td></tr></table></figure></p>
+<p><code>mymongodb.conf</code>内容如下<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">description <span class="string">"lrfmad-mongodb"</span></div><div class="line">author <span class="string">"lenrinfvck"</span></div><div class="line"><span class="built_in">limit</span> nofile 20000 20000</div><div class="line"><span class="built_in">kill</span> timeout 300</div><div class="line">respawn</div><div class="line">respawn <span class="built_in">limit</span> 2 5</div><div class="line">start on runlevel [2345]</div><div class="line">stop on runlevel [06]</div><div class="line"><span class="built_in">exec</span>  /usr/<span class="built_in">local</span>/mongodb/bin/mongod --config /usr/<span class="built_in">local</span>/mongodb/bin/mongodb.conf</div></pre></td></tr></table></figure></p>
+<p>启动Upstart<br><code>start mynode</code>以及<code>start mymongodb</code>  </p>
+<blockquote>
+<p>>mynode start/running, process 6770  </p>
+</blockquote>
+<p><em>之后可以尝试重启服务器，测试环境是否启动</em></p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;blockquote&gt;
+&lt;p&gt;[服务器]： 阿里云ECS，1核512MB，流量收费(￥28.8/月，￥0.72/GB)&lt;br&gt; [系统]：CentOS6.5 32位&lt;br&gt; [环境]：Node + Express + Mongodb3.0.6&lt;br&gt; [本机]：OSX EI Capitan  &lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Linux，OSX直接以ssh链接，Win使用putty链接&lt;/p&gt;
+    
+    </summary>
+    
+      <category term="WEB前端" scheme="http://lenrinfvck.cn/categories/WEB%E5%89%8D%E7%AB%AF/"/>
+    
+    
+      <category term="nodejs" scheme="http://lenrinfvck.cn/tags/nodejs/"/>
+    
+      <category term="express" scheme="http://lenrinfvck.cn/tags/express/"/>
+    
+      <category term="mongodb" scheme="http://lenrinfvck.cn/tags/mongodb/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>【PV】2015世萌季后赛PV</title>
+    <link href="http://lenrinfvck.cn/2015/11/05/p12-2015-moepv/"/>
+    <id>http://lenrinfvck.cn/2015/11/05/p12-2015-moepv/</id>
+    <published>2015-11-05T04:19:00.000Z</published>
+    <updated>2016-11-27T14:34:34.000Z</updated>
+    
+    <content type="html"><![CDATA[<img src="/2015/11/05/p12-2015-moepv/01.jpg" alt="预览图" title="预览图">  
+<ul>
+<li>【EVENT】 2015世萌季后赛PV合作  </li>
+<li>【BGM】 ClariS - pastel</li>
+<li>【MATERIAL】 伪恋ED，相关动画OP，网络图片  </li>
+<li>【分段】 00:00 - 00:20</li>
+<li>【PS】 很久没填过坑了，填的很累，中途弃坑了几次，最后赶出来发现自己是第一个交稿的。。。</li>
+<li>【LINK】 <a href="http://www.bilibili.com/video/av3171576/" target="_blank" rel="external">bilibili</a>  </li>
+</ul>
+<embed height="450" width="100%" quality="high" allowfullscreen="true" type="application/x-shockwave-flash" src="http://static.hdslb.com/miniloader.swf" flashvars="aid=3171576&page=1" pluginspage="http://www.adobe.com/shockwave/download/download.cgi?P1_Prod_Version=ShockwaveFlash">
+
+<a id="more"></a>
+<p>如头图，第一个分镜，人物为伪恋ED01中幼年兔子的动抠。<br>玻璃窗和地板都是<code>蜂窝Cell pattern</code>制作，地板叠了星空图，玻璃叠了视频或者直接overflow后面的星空。<br>背景多张星空图组合+OF光，光源主要来自星空方向的平行光，故这边人物成黑色。<br>后期又在走廊空中叠了点P粒子看起来丰富点。。。  </p>
+<img src="/2015/11/05/p12-2015-moepv/02.jpg" alt="分镜二" title="分镜二">  
+<p>跟随原动画镜头位移，让蜂窝玻璃也跟着移动，模拟摄像机向上移动。  </p>
+<img src="/2015/11/05/p12-2015-moepv/03.jpg" alt="分镜三" title="分镜三">  
+<p>填到后面填不动了，随便糊了一个，觉得太屎了，后来有重新想了个，绝的太麻烦了，要调很久，于是就找了模板去了，没看几个就看的这个挺合适的，就拿来用了，改良了下后发现效果不错，打打节奏点后发现可以按原计划把之前放弃的后面一小段也一起做了，就成最后这样了。。。  </p>
+<blockquote>
+<p>工程文件：<a href="#">暂无, 在其他电脑上，本文为顺便测试blog…</a></p>
+</blockquote>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;img src=&quot;/2015/11/05/p12-2015-moepv/01.jpg&quot; alt=&quot;预览图&quot; title=&quot;预览图&quot;&gt;  
+&lt;ul&gt;
+&lt;li&gt;【EVENT】 2015世萌季后赛PV合作  &lt;/li&gt;
+&lt;li&gt;【BGM】 ClariS - pastel&lt;/li&gt;
+&lt;li&gt;【MATERIAL】 伪恋ED，相关动画OP，网络图片  &lt;/li&gt;
+&lt;li&gt;【分段】 00:00 - 00:20&lt;/li&gt;
+&lt;li&gt;【PS】 很久没填过坑了，填的很累，中途弃坑了几次，最后赶出来发现自己是第一个交稿的。。。&lt;/li&gt;
+&lt;li&gt;【LINK】 &lt;a href=&quot;http://www.bilibili.com/video/av3171576/&quot;&gt;bilibili&lt;/a&gt;  &lt;/li&gt;
+&lt;/ul&gt;
+&lt;embed height=&quot;450&quot; width=&quot;100%&quot; quality=&quot;high&quot; allowfullscreen=&quot;true&quot; type=&quot;application/x-shockwave-flash&quot; src=&quot;http://static.hdslb.com/miniloader.swf&quot; flashvars=&quot;aid=3171576&amp;page=1&quot; pluginspage=&quot;http://www.adobe.com/shockwave/download/download.cgi?P1_Prod_Version=ShockwaveFlash&quot;&gt;&lt;/embed&gt;
+    
+    </summary>
+    
+      <category term="MAD作品" scheme="http://lenrinfvck.cn/categories/MAD%E4%BD%9C%E5%93%81/"/>
+    
+    
+      <category term="MAD" scheme="http://lenrinfvck.cn/tags/MAD/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>【MAD】Little Busters - After Effects</title>
+    <link href="http://lenrinfvck.cn/2014/03/10/p10-chunqiu-2013/"/>
+    <id>http://lenrinfvck.cn/2014/03/10/p10-chunqiu-2013/</id>
+    <published>2014-03-10T06:40:00.000Z</published>
+    <updated>2016-11-27T12:37:31.000Z</updated>
+    
+    <content type="html"><![CDATA[<img src="/2014/03/10/p10-chunqiu-2013/00.jpg" alt="封面" title="封面">
+<ul>
+<li>【EVENT】 第五回春秋合战-最终日  </li>
+<li>【BGM】 INFINITE CRISIS  </li>
+<li>【MATERIAL】 LB动画，LB游戏，LB同人，雪之本境  </li>
+<li>【PS】 参加春秋很愉悦，和二哥同一天很兴奋，忙到半夜的羽殇姐姐辛苦了。    </li>
+<li>【LINK】 <a href="http://www.bilibili.com/video/av1003639/" target="_blank" rel="external">bilibili</a>  </li>
+</ul>
+<a id="more"></a>
+<embed height="450" width="100%" quality="high" allowfullscreen="true" type="application/x-shockwave-flash" src="http://static.hdslb.com/miniloader.swf" flashvars="aid=1003639&page=1" pluginspage="http://www.adobe.com/shockwave/download/download.cgi?P1_Prod_Version=ShockwaveFlash">]]></content>
+    
+    <summary type="html">
+    
+      &lt;img src=&quot;/2014/03/10/p10-chunqiu-2013/00.jpg&quot; alt=&quot;封面&quot; title=&quot;封面&quot;&gt;
+&lt;ul&gt;
+&lt;li&gt;【EVENT】 第五回春秋合战-最终日  &lt;/li&gt;
+&lt;li&gt;【BGM】 INFINITE CRISIS  &lt;/li&gt;
+&lt;li&gt;【MATERIAL】 LB动画，LB游戏，LB同人，雪之本境  &lt;/li&gt;
+&lt;li&gt;【PS】 参加春秋很愉悦，和二哥同一天很兴奋，忙到半夜的羽殇姐姐辛苦了。    &lt;/li&gt;
+&lt;li&gt;【LINK】 &lt;a href=&quot;http://www.bilibili.com/video/av1003639/&quot;&gt;bilibili&lt;/a&gt;  &lt;/li&gt;
+&lt;/ul&gt;
+    
+    </summary>
+    
+      <category term="MAD作品" scheme="http://lenrinfvck.cn/categories/MAD%E4%BD%9C%E5%93%81/"/>
+    
+    
+      <category term="MAD" scheme="http://lenrinfvck.cn/tags/MAD/"/>
+    
+      <category term="混合系" scheme="http://lenrinfvck.cn/tags/%E6%B7%B7%E5%90%88%E7%B3%BB/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>【Towiko组内合作】爆漫王☆SEEDX8</title>
+    <link href="http://lenrinfvck.cn/2014/02/06/p9-towiko-comic/"/>
+    <id>http://lenrinfvck.cn/2014/02/06/p9-towiko-comic/</id>
+    <published>2014-02-06T09:42:00.000Z</published>
+    <updated>2016-11-27T12:37:22.000Z</updated>
+    
+    <content type="html"><![CDATA[<img src="/2014/02/06/p9-towiko-comic/00.jpg" alt="封面" title="封面">
+<ul>
+<li>【EVENT】 Towiko合作，主题为漫画  </li>
+<li>【BGM】 SEED  </li>
+<li>【MATERIAL】 一拳超人  </li>
+<li>【分段】 一拳部分   </li>
+<li>【PS】 漫画真没做过，划水被打回后又上E3D赶了一版，尝试了些很有趣的做法。。。机子很卡    </li>
+<li>【LINK】 <a href="http://www.bilibili.com/video/av948308/" target="_blank" rel="external">bilibili</a>  </li>
+</ul>
+<a id="more"></a>  
+<embed height="450" width="100%" quality="high" allowfullscreen="true" type="application/x-shockwave-flash" src="http://static.hdslb.com/miniloader.swf" flashvars="aid=948308&page=1" pluginspage="http://www.adobe.com/shockwave/download/download.cgi?P1_Prod_Version=ShockwaveFlash">]]></content>
+    
+    <summary type="html">
+    
+      &lt;img src=&quot;/2014/02/06/p9-towiko-comic/00.jpg&quot; alt=&quot;封面&quot; title=&quot;封面&quot;&gt;
+&lt;ul&gt;
+&lt;li&gt;【EVENT】 Towiko合作，主题为漫画  &lt;/li&gt;
+&lt;li&gt;【BGM】 SEED  &lt;/li&gt;
+&lt;li&gt;【MATERIAL】 一拳超人  &lt;/li&gt;
+&lt;li&gt;【分段】 一拳部分   &lt;/li&gt;
+&lt;li&gt;【PS】 漫画真没做过，划水被打回后又上E3D赶了一版，尝试了些很有趣的做法。。。机子很卡    &lt;/li&gt;
+&lt;li&gt;【LINK】 &lt;a href=&quot;http://www.bilibili.com/video/av948308/&quot;&gt;bilibili&lt;/a&gt;  &lt;/li&gt;
+&lt;/ul&gt;
+    
+    </summary>
+    
+      <category term="MAD作品" scheme="http://lenrinfvck.cn/categories/MAD%E4%BD%9C%E5%93%81/"/>
+    
+    
+      <category term="MAD" scheme="http://lenrinfvck.cn/tags/MAD/"/>
+    
+      <category term="合作" scheme="http://lenrinfvck.cn/tags/%E5%90%88%E4%BD%9C/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>【PV】LittleBusters! 同人本宣传PV</title>
+    <link href="http://lenrinfvck.cn/2013/04/06/p11-lbpv/"/>
+    <id>http://lenrinfvck.cn/2013/04/06/p11-lbpv/</id>
+    <published>2013-04-06T10:27:00.000Z</published>
+    <updated>2016-11-27T12:37:12.000Z</updated>
+    
+    <content type="html"><![CDATA[<img src="/2013/04/06/p11-lbpv/00.jpg" alt="封面" title="封面">
+<ul>
+<li>【EVENT】 LittleBusters同人本宣传动画  </li>
+<li>【BGM】 LBPSV版特典  </li>
+<li>【MATERIAL】 LittleBusters同人本素材  </li>
+<li>【PS】 欢迎购买嗯，50一套（本子 纸袋 贴纸 海报）。<a href="http://doujin.bangumi.tv/club/manyanshe" target="_blank" rel="external">漫研社公式站点</a>    </li>
+<li>【LINK】 <a href="http://www.bilibili.com/video/av527648/" target="_blank" rel="external">bilibili</a>  </li>
+</ul>
+<a id="more"></a>
+<embed height="415" width="544" quality="high" allowfullscreen="true" type="application/x-shockwave-flash" src="http://static.hdslb.com/miniloader.swf" flashvars="aid=527648&page=1" pluginspage="http://www.adobe.com/shockwave/download/download.cgi?P1_Prod_Version=ShockwaveFlash">]]></content>
+    
+    <summary type="html">
+    
+      &lt;img src=&quot;/2013/04/06/p11-lbpv/00.jpg&quot; alt=&quot;封面&quot; title=&quot;封面&quot;&gt;
+&lt;ul&gt;
+&lt;li&gt;【EVENT】 LittleBusters同人本宣传动画  &lt;/li&gt;
+&lt;li&gt;【BGM】 LBPSV版特典  &lt;/li&gt;
+&lt;li&gt;【MATERIAL】 LittleBusters同人本素材  &lt;/li&gt;
+&lt;li&gt;【PS】 欢迎购买嗯，50一套（本子 纸袋 贴纸 海报）。&lt;a href=&quot;http://doujin.bangumi.tv/club/manyanshe&quot;&gt;漫研社公式站点&lt;/a&gt;    &lt;/li&gt;
+&lt;li&gt;【LINK】 &lt;a href=&quot;http://www.bilibili.com/video/av527648/&quot;&gt;bilibili&lt;/a&gt;  &lt;/li&gt;
+&lt;/ul&gt;
+    
+    </summary>
+    
+      <category term="MAD作品" scheme="http://lenrinfvck.cn/categories/MAD%E4%BD%9C%E5%93%81/"/>
+    
+    
+      <category term="MAD" scheme="http://lenrinfvck.cn/tags/MAD/"/>
+    
+      <category term="静止系" scheme="http://lenrinfvck.cn/tags/%E9%9D%99%E6%AD%A2%E7%B3%BB/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>【Towiko组内合作】Hop Step Love×16</title>
+    <link href="http://lenrinfvck.cn/2013/02/14/p7-towiko-gal/"/>
+    <id>http://lenrinfvck.cn/2013/02/14/p7-towiko-gal/</id>
+    <published>2013-02-14T06:42:00.000Z</published>
+    <updated>2016-11-27T12:37:39.000Z</updated>
+    
+    <content type="html"><![CDATA[<img src="/2013/02/14/p7-towiko-gal/00.jpg" alt="封面" title="封面">
+<ul>
+<li>【EVENT】 Towiko静止合作，主题为Gal  </li>
+<li>【BGM】 知道了再补  </li>
+<li>【MATERIAL】 Little Busters  </li>
+<li>【分段】 1:25 - 1:34s LB部分  </li>
+<li>【PS】 貌似是进T组后第一次参加合作，分镜有点抄某LB的合作，不过做的还是挺满意    </li>
+<li>【LINK】 <a href="http://www.bilibili.com/video/av472051/" target="_blank" rel="external">bilibili</a>  </li>
+</ul>
+<a id="more"></a>
+<embed height="450" width="100%" quality="high" allowfullscreen="true" type="application/x-shockwave-flash" src="http://static.hdslb.com/miniloader.swf" flashvars="aid=472051&page=1" pluginspage="http://www.adobe.com/shockwave/download/download.cgi?P1_Prod_Version=ShockwaveFlash">]]></content>
+    
+    <summary type="html">
+    
+      &lt;img src=&quot;/2013/02/14/p7-towiko-gal/00.jpg&quot; alt=&quot;封面&quot; title=&quot;封面&quot;&gt;
+&lt;ul&gt;
+&lt;li&gt;【EVENT】 Towiko静止合作，主题为Gal  &lt;/li&gt;
+&lt;li&gt;【BGM】 知道了再补  &lt;/li&gt;
+&lt;li&gt;【MATERIAL】 Little Busters  &lt;/li&gt;
+&lt;li&gt;【分段】 1:25 - 1:34s LB部分  &lt;/li&gt;
+&lt;li&gt;【PS】 貌似是进T组后第一次参加合作，分镜有点抄某LB的合作，不过做的还是挺满意    &lt;/li&gt;
+&lt;li&gt;【LINK】 &lt;a href=&quot;http://www.bilibili.com/video/av472051/&quot;&gt;bilibili&lt;/a&gt;  &lt;/li&gt;
+&lt;/ul&gt;
+    
+    </summary>
+    
+      <category term="MAD作品" scheme="http://lenrinfvck.cn/categories/MAD%E4%BD%9C%E5%93%81/"/>
+    
+    
+      <category term="MAD" scheme="http://lenrinfvck.cn/tags/MAD/"/>
+    
+      <category term="合作" scheme="http://lenrinfvck.cn/tags/%E5%90%88%E4%BD%9C/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>【GayTeam合作】做不了一辈子mad，愿做一辈子基友</title>
+    <link href="http://lenrinfvck.cn/2013/01/27/p8-gayteam-ac2013/"/>
+    <id>http://lenrinfvck.cn/2013/01/27/p8-gayteam-ac2013/</id>
+    <published>2013-01-27T09:04:05.000Z</published>
+    <updated>2016-11-27T12:37:35.000Z</updated>
+    
+    <content type="html"><![CDATA[<img src="/2013/01/27/p8-gayteam-ac2013/00.jpg" alt="封面" title="封面">
+<ul>
+<li>【EVENT】 Acfun2013春晚，GT合作  </li>
+<li>【BGM】 忘了  </li>
+<li>【MATERIAL】 LittleBusters动画  </li>
+<li>【分段】 1:38-1:46 LB部分   </li>
+<li>【PS】 大家都很卖力的动抠，个人做了三天，抠图花了一天    </li>
+<li>【LINK】 <a href="http://www.acfun.tv/v/ac1519231" target="_blank" rel="external">acfun</a>  </li>
+</ul>
+<a id="more"></a>
+<iframe style="width:100%px;height:450px;" src="http://cdn.aixifan.com/player/ACFlashPlayer.out.swf?vid=1626790&ref=http://www.acfun.tv/v/ac1519231" id="ACFlashPlayer-re" frameborder="0"></iframe>]]></content>
+    
+    <summary type="html">
+    
+      &lt;img src=&quot;/2013/01/27/p8-gayteam-ac2013/00.jpg&quot; alt=&quot;封面&quot; title=&quot;封面&quot;&gt;
+&lt;ul&gt;
+&lt;li&gt;【EVENT】 Acfun2013春晚，GT合作  &lt;/li&gt;
+&lt;li&gt;【BGM】 忘了  &lt;/li&gt;
+&lt;li&gt;【MATERIAL】 LittleBusters动画  &lt;/li&gt;
+&lt;li&gt;【分段】 1:38-1:46 LB部分   &lt;/li&gt;
+&lt;li&gt;【PS】 大家都很卖力的动抠，个人做了三天，抠图花了一天    &lt;/li&gt;
+&lt;li&gt;【LINK】 &lt;a href=&quot;http://www.acfun.tv/v/ac1519231&quot;&gt;acfun&lt;/a&gt;  &lt;/li&gt;
+&lt;/ul&gt;
+    
+    </summary>
+    
+      <category term="MAD作品" scheme="http://lenrinfvck.cn/categories/MAD%E4%BD%9C%E5%93%81/"/>
+    
+    
+      <category term="MAD" scheme="http://lenrinfvck.cn/tags/MAD/"/>
+    
+      <category term="合作" scheme="http://lenrinfvck.cn/tags/%E5%90%88%E4%BD%9C/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>【CM】Haru·初祭2013 CM1</title>
+    <link href="http://lenrinfvck.cn/2013/01/16/p6-2013-haru/"/>
+    <id>http://lenrinfvck.cn/2013/01/16/p6-2013-haru/</id>
+    <published>2013-01-16T05:30:00.000Z</published>
+    <updated>2016-11-27T12:37:44.000Z</updated>
+    
+    <content type="html"><![CDATA[<img src="/2013/01/16/p6-2013-haru/00.jpg" alt="封面" title="封面">
+<ul>
+<li>【EVENT】 Haru·初祭2013 CM合作  </li>
+<li>【BGM】 满脑 俺喂牛niconico~(不知道)  </li>
+<li>【MATERIAL】 E3D自带素材  </li>
+<li>【分段】 00:00 - 00:17 片头  </li>
+<li>【PS】 第二次E3D实战，还不错呢，额外装饰后来加上后好看了许多，当时挺满意的    </li>
+<li>【LINK】 <a href="http://www.bilibili.com/video/av442115/?zw" target="_blank" rel="external">bilibili</a>  </li>
+</ul>
+<a id="more"></a>
+<embed height="450" width="100%" quality="high" allowfullscreen="true" type="application/x-shockwave-flash" src="http://static.hdslb.com/miniloader.swf" flashvars="aid=442115&page=1" pluginspage="http://www.adobe.com/shockwave/download/download.cgi?P1_Prod_Version=ShockwaveFlash">]]></content>
+    
+    <summary type="html">
+    
+      &lt;img src=&quot;/2013/01/16/p6-2013-haru/00.jpg&quot; alt=&quot;封面&quot; title=&quot;封面&quot;&gt;
+&lt;ul&gt;
+&lt;li&gt;【EVENT】 Haru·初祭2013 CM合作  &lt;/li&gt;
+&lt;li&gt;【BGM】 满脑 俺喂牛niconico~(不知道)  &lt;/li&gt;
+&lt;li&gt;【MATERIAL】 E3D自带素材  &lt;/li&gt;
+&lt;li&gt;【分段】 00:00 - 00:17 片头  &lt;/li&gt;
+&lt;li&gt;【PS】 第二次E3D实战，还不错呢，额外装饰后来加上后好看了许多，当时挺满意的    &lt;/li&gt;
+&lt;li&gt;【LINK】 &lt;a href=&quot;http://www.bilibili.com/video/av442115/?zw&quot;&gt;bilibili&lt;/a&gt;  &lt;/li&gt;
+&lt;/ul&gt;
+    
+    </summary>
+    
+      <category term="MAD作品" scheme="http://lenrinfvck.cn/categories/MAD%E4%BD%9C%E5%93%81/"/>
+    
+    
+      <category term="MAD" scheme="http://lenrinfvck.cn/tags/MAD/"/>
+    
+      <category term="合作" scheme="http://lenrinfvck.cn/tags/%E5%90%88%E4%BD%9C/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>【MAD】二人の夏</title>
+    <link href="http://lenrinfvck.cn/2012/11/12/p5-2012-newmader/"/>
+    <id>http://lenrinfvck.cn/2012/11/12/p5-2012-newmader/</id>
+    <published>2012-11-12T12:07:00.000Z</published>
+    <updated>2016-11-27T12:37:53.000Z</updated>
+    
+    <content type="html"><![CDATA[<img src="/2012/11/12/p5-2012-newmader/00.jpg" alt="封面" title="封面">
+<ul>
+<li>【EVENT】 2012MAD新人战-最终日  </li>
+<li>【BGM】 secret base (《未闻花名》ED)  </li>
+<li>【MATERIAL】 萤火之森-剧场版  </li>
+<li>【PS】 第一次做这么长，做的挺认真，现在看来很是喜欢。    </li>
+<li>【LINK】 <a href="http://www.bilibili.com/video/av393053/?zw" target="_blank" rel="external">bilibili</a>  </li>
+</ul>
+<a id="more"></a>
+<embed height="450" width="100%" quality="high" allowfullscreen="true" type="application/x-shockwave-flash" src="http://static.hdslb.com/miniloader.swf" flashvars="aid=393053&page=1" pluginspage="http://www.adobe.com/shockwave/download/download.cgi?P1_Prod_Version=ShockwaveFlash">]]></content>
+    
+    <summary type="html">
+    
+      &lt;img src=&quot;/2012/11/12/p5-2012-newmader/00.jpg&quot; alt=&quot;封面&quot; title=&quot;封面&quot;&gt;
+&lt;ul&gt;
+&lt;li&gt;【EVENT】 2012MAD新人战-最终日  &lt;/li&gt;
+&lt;li&gt;【BGM】 secret base (《未闻花名》ED)  &lt;/li&gt;
+&lt;li&gt;【MATERIAL】 萤火之森-剧场版  &lt;/li&gt;
+&lt;li&gt;【PS】 第一次做这么长，做的挺认真，现在看来很是喜欢。    &lt;/li&gt;
+&lt;li&gt;【LINK】 &lt;a href=&quot;http://www.bilibili.com/video/av393053/?zw&quot;&gt;bilibili&lt;/a&gt;  &lt;/li&gt;
+&lt;/ul&gt;
+    
+    </summary>
+    
+      <category term="MAD作品" scheme="http://lenrinfvck.cn/categories/MAD%E4%BD%9C%E5%93%81/"/>
+    
+    
+      <category term="MAD" scheme="http://lenrinfvck.cn/tags/MAD/"/>
+    
+      <category term="混合系" scheme="http://lenrinfvck.cn/tags/%E6%B7%B7%E5%90%88%E7%B3%BB/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>【MAD合作】性别不同怎么谈恋爱</title>
+    <link href="http://lenrinfvck.cn/2012/09/02/p4-gays-oneday/"/>
+    <id>http://lenrinfvck.cn/2012/09/02/p4-gays-oneday/</id>
+    <published>2012-09-02T07:03:00.000Z</published>
+    <updated>2016-11-27T12:41:37.000Z</updated>
+    
+    <content type="html"><![CDATA[<img src="/2012/09/02/p4-gays-oneday/00.jpg" alt="封面" title="封面">
+<ul>
+<li>【EVENT】 深夜四基佬日烧合作  </li>
+<li>【BGM】 能登麻美子 - 夕颜  </li>
+<li>【MATERIAL】 女装山脉CG (千万不要去玩)  </li>
+<li>【分段】 1:16-1:42</li>
+<li>【PS】 my wife names milk; 风触我是你的NC粉; 论AA老师的重要性;    </li>
+<li>【LINK】 <a href="http://www.bilibili.com/video/av350508/" target="_blank" rel="external">bilibili</a>  </li>
+</ul>
+<a id="more"></a>
+<embed height="450" width="100%" quality="high" allowfullscreen="true" type="application/x-shockwave-flash" src="http://static.hdslb.com/miniloader.swf" flashvars="aid=350508&page=1" pluginspage="http://www.adobe.com/shockwave/download/download.cgi?P1_Prod_Version=ShockwaveFlash">]]></content>
+    
+    <summary type="html">
+    
+      &lt;img src=&quot;/2012/09/02/p4-gays-oneday/00.jpg&quot; alt=&quot;封面&quot; title=&quot;封面&quot;&gt;
+&lt;ul&gt;
+&lt;li&gt;【EVENT】 深夜四基佬日烧合作  &lt;/li&gt;
+&lt;li&gt;【BGM】 能登麻美子 - 夕颜  &lt;/li&gt;
+&lt;li&gt;【MATERIAL】 女装山脉CG (千万不要去玩)  &lt;/li&gt;
+&lt;li&gt;【分段】 1:16-1:42&lt;/li&gt;
+&lt;li&gt;【PS】 my wife names milk; 风触我是你的NC粉; 论AA老师的重要性;    &lt;/li&gt;
+&lt;li&gt;【LINK】 &lt;a href=&quot;http://www.bilibili.com/video/av350508/&quot;&gt;bilibili&lt;/a&gt;  &lt;/li&gt;
+&lt;/ul&gt;
+    
+    </summary>
+    
+      <category term="MAD作品" scheme="http://lenrinfvck.cn/categories/MAD%E4%BD%9C%E5%93%81/"/>
+    
+    
+      <category term="MAD" scheme="http://lenrinfvck.cn/tags/MAD/"/>
+    
+      <category term="合作" scheme="http://lenrinfvck.cn/tags/%E5%90%88%E4%BD%9C/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>【mad吧mep合作】I&#39;ll believe - 爱比利</title>
+    <link href="http://lenrinfvck.cn/2012/08/20/p3-tieba-02/"/>
+    <id>http://lenrinfvck.cn/2012/08/20/p3-tieba-02/</id>
+    <published>2012-08-20T11:21:00.000Z</published>
+    <updated>2016-11-27T12:41:01.000Z</updated>
+    
+    <content type="html"><![CDATA[<img src="/2012/08/20/p3-tieba-02/mad_mep2.jpg" alt="封面" title="封面">
+<ul>
+<li>【EVENT】 mad吧暑期mep合作  </li>
+<li>【BGM】 I’ll believe  </li>
+<li>【MATERIAL】 传说系列OP, 黑契, FZ  </li>
+<li>【分段】 2:30 - 2:47 part10  </li>
+<li>【PS】 那时动不动就合作呢，我前面part9是hentaiQsama啊。。。还有OP是我做的→_→    </li>
+<li>【LINK】 <a href="http://www.bilibili.com/video/av340925/" target="_blank" rel="external">bilibili</a>  </li>
+</ul>
+<a id="more"></a>
+<embed height="450" width="100%" quality="high" allowfullscreen="true" type="application/x-shockwave-flash" src="http://static.hdslb.com/miniloader.swf" flashvars="aid=340925&page=1" pluginspage="http://www.adobe.com/shockwave/download/download.cgi?P1_Prod_Version=ShockwaveFlash">]]></content>
+    
+    <summary type="html">
+    
+      &lt;img src=&quot;/2012/08/20/p3-tieba-02/mad_mep2.jpg&quot; alt=&quot;封面&quot; title=&quot;封面&quot;&gt;
+&lt;ul&gt;
+&lt;li&gt;【EVENT】 mad吧暑期mep合作  &lt;/li&gt;
+&lt;li&gt;【BGM】 I’ll believe  &lt;/li&gt;
+&lt;li&gt;【MATERIAL】 传说系列OP, 黑契, FZ  &lt;/li&gt;
+&lt;li&gt;【分段】 2:30 - 2:47 part10  &lt;/li&gt;
+&lt;li&gt;【PS】 那时动不动就合作呢，我前面part9是hentaiQsama啊。。。还有OP是我做的→_→    &lt;/li&gt;
+&lt;li&gt;【LINK】 &lt;a href=&quot;http://www.bilibili.com/video/av340925/&quot;&gt;bilibili&lt;/a&gt;  &lt;/li&gt;
+&lt;/ul&gt;
+    
+    </summary>
+    
+      <category term="MAD作品" scheme="http://lenrinfvck.cn/categories/MAD%E4%BD%9C%E5%93%81/"/>
+    
+    
+      <category term="MAD" scheme="http://lenrinfvck.cn/tags/MAD/"/>
+    
+      <category term="合作" scheme="http://lenrinfvck.cn/tags/%E5%90%88%E4%BD%9C/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>【mad吧mep合作】风铃赞歌</title>
+    <link href="http://lenrinfvck.cn/2012/05/07/p2-tieba-01/"/>
+    <id>http://lenrinfvck.cn/2012/05/07/p2-tieba-01/</id>
+    <published>2012-05-06T16:00:00.000Z</published>
+    <updated>2016-11-27T12:40:16.000Z</updated>
+    
+    <content type="html"><![CDATA[<img src="/2012/05/07/p2-tieba-01/mad_mep1.jpg" alt="封面" title="封面">
+<ul>
+<li>【EVENT】 入吧后第一次MAD吧mep合作  </li>
+<li>【BGM】 JJJJ（不知道）  </li>
+<li>【MATERIAL】 银魂, Another, 金坷垃  </li>
+<li>【分段】 1:25 - 1:32 part12  </li>
+<li>【PS】 这是百度MAD吧第一次交流性质的合作，意在互相交流与学习，早期黑历史般的合作啊，做的好屎。。。  </li>
+<li>【LINK】 <a href="http://www.bilibili.com/video/av261749/" target="_blank" rel="external">bilibili</a>  </li>
+</ul>
+<a id="more"></a>
+<embed height="450" width="100%" quality="high" allowfullscreen="true" type="application/x-shockwave-flash" src="http://static.hdslb.com/miniloader.swf" flashvars="aid=261749&page=1" pluginspage="http://www.adobe.com/shockwave/download/download.cgi?P1_Prod_Version=ShockwaveFlash">]]></content>
+    
+    <summary type="html">
+    
+      &lt;img src=&quot;/2012/05/07/p2-tieba-01/mad_mep1.jpg&quot; alt=&quot;封面&quot; title=&quot;封面&quot;&gt;
+&lt;ul&gt;
+&lt;li&gt;【EVENT】 入吧后第一次MAD吧mep合作  &lt;/li&gt;
+&lt;li&gt;【BGM】 JJJJ（不知道）  &lt;/li&gt;
+&lt;li&gt;【MATERIAL】 银魂, Another, 金坷垃  &lt;/li&gt;
+&lt;li&gt;【分段】 1:25 - 1:32 part12  &lt;/li&gt;
+&lt;li&gt;【PS】 这是百度MAD吧第一次交流性质的合作，意在互相交流与学习，早期黑历史般的合作啊，做的好屎。。。  &lt;/li&gt;
+&lt;li&gt;【LINK】 &lt;a href=&quot;http://www.bilibili.com/video/av261749/&quot;&gt;bilibili&lt;/a&gt;  &lt;/li&gt;
+&lt;/ul&gt;
+    
+    </summary>
+    
+      <category term="MAD作品" scheme="http://lenrinfvck.cn/categories/MAD%E4%BD%9C%E5%93%81/"/>
+    
+    
+      <category term="MAD" scheme="http://lenrinfvck.cn/tags/MAD/"/>
+    
+      <category term="合作" scheme="http://lenrinfvck.cn/tags/%E5%90%88%E4%BD%9C/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>【MAD】青空 仿制</title>
+    <link href="http://lenrinfvck.cn/2012/01/23/p1-sola/"/>
+    <id>http://lenrinfvck.cn/2012/01/23/p1-sola/</id>
+    <published>2012-01-23T04:02:00.000Z</published>
+    <updated>2016-11-27T12:43:59.000Z</updated>
+    
+    <content type="html"><![CDATA[<img src="/2012/01/23/p1-sola/00.jpg" alt="封面" title="封面">
+<ul>
+<li>【EVENT】 初学AE，仿作练习  </li>
+<li>【BGM】 玻璃の空  </li>
+<li>【MATERIAL】 网络图包  </li>
+<li>【PS】 仿制数好几十的入门练手作。向原作者羽殇致敬  </li>
+<li>【LINK】 <a href="http://www.bilibili.com/video/av203894" target="_blank" rel="external">bilibili</a>  </li>
+</ul>
+<a id="more"></a>
+<embed height="450" width="100%" quality="high" allowfullscreen="true" type="application/x-shockwave-flash" src="http://static.hdslb.com/miniloader.swf" flashvars="aid=203894&page=1" pluginspage="http://www.adobe.com/shockwave/download/download.cgi?P1_Prod_Version=ShockwaveFlash">]]></content>
+    
+    <summary type="html">
+    
+      &lt;img src=&quot;/2012/01/23/p1-sola/00.jpg&quot; alt=&quot;封面&quot; title=&quot;封面&quot;&gt;
+&lt;ul&gt;
+&lt;li&gt;【EVENT】 初学AE，仿作练习  &lt;/li&gt;
+&lt;li&gt;【BGM】 玻璃の空  &lt;/li&gt;
+&lt;li&gt;【MATERIAL】 网络图包  &lt;/li&gt;
+&lt;li&gt;【PS】 仿制数好几十的入门练手作。向原作者羽殇致敬  &lt;/li&gt;
+&lt;li&gt;【LINK】 &lt;a href=&quot;http://www.bilibili.com/video/av203894&quot;&gt;bilibili&lt;/a&gt;  &lt;/li&gt;
+&lt;/ul&gt;
+    
+    </summary>
+    
+      <category term="MAD作品" scheme="http://lenrinfvck.cn/categories/MAD%E4%BD%9C%E5%93%81/"/>
+    
+    
+      <category term="MAD" scheme="http://lenrinfvck.cn/tags/MAD/"/>
+    
+      <category term="静止系" scheme="http://lenrinfvck.cn/tags/%E9%9D%99%E6%AD%A2%E7%B3%BB/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>【MAD】EF &amp; YELL</title>
+    <link href="http://lenrinfvck.cn/2012/01/20/p0-ef-yell/"/>
+    <id>http://lenrinfvck.cn/2012/01/20/p0-ef-yell/</id>
+    <published>2012-01-20T12:44:00.000Z</published>
+    <updated>2016-11-27T12:44:05.000Z</updated>
+    
+    <content type="html"><![CDATA[<img src="/2012/01/20/p0-ef-yell/00.jpg" alt="封面" title="封面">
+<ul>
+<li>【EVENT】 处女作  </li>
+<li>【BGM】 生物股长 - Yell  </li>
+<li>【MATERIAL】 EF、eden*游戏及动画OP  </li>
+<li>【PS】 初学vegas后的第一作，入坑作，现在看来别有一番风味  </li>
+<li>【LINK】 <a href="http://www.bilibili.com/video/av202683" target="_blank" rel="external">bilibili</a>  </li>
+</ul>
+<a id="more"></a>
+<embed height="450" width="100%" quality="high" allowfullscreen="true" type="application/x-shockwave-flash" src="http://static.hdslb.com/miniloader.swf" flashvars="aid=202683&page=1" pluginspage="http://www.adobe.com/shockwave/download/download.cgi?P1_Prod_Version=ShockwaveFlash">]]></content>
+    
+    <summary type="html">
+    
+      &lt;img src=&quot;/2012/01/20/p0-ef-yell/00.jpg&quot; alt=&quot;封面&quot; title=&quot;封面&quot;&gt;
+&lt;ul&gt;
+&lt;li&gt;【EVENT】 处女作  &lt;/li&gt;
+&lt;li&gt;【BGM】 生物股长 - Yell  &lt;/li&gt;
+&lt;li&gt;【MATERIAL】 EF、eden*游戏及动画OP  &lt;/li&gt;
+&lt;li&gt;【PS】 初学vegas后的第一作，入坑作，现在看来别有一番风味  &lt;/li&gt;
+&lt;li&gt;【LINK】 &lt;a href=&quot;http://www.bilibili.com/video/av202683&quot;&gt;bilibili&lt;/a&gt;  &lt;/li&gt;
+&lt;/ul&gt;
+    
+    </summary>
+    
+      <category term="MAD作品" scheme="http://lenrinfvck.cn/categories/MAD%E4%BD%9C%E5%93%81/"/>
+    
+    
+      <category term="MAD" scheme="http://lenrinfvck.cn/tags/MAD/"/>
+    
+      <category term="纯剪" scheme="http://lenrinfvck.cn/tags/%E7%BA%AF%E5%89%AA/"/>
+    
+  </entry>
+  
+</feed>
